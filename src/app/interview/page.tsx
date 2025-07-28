@@ -73,6 +73,15 @@ export default function InterviewPage() {
         }
         setStatus('idle');
       };
+      
+      recognition.onend = () => {
+        // Only change status if we are in 'listening' state.
+        // This prevents state changes on intentional stops.
+        if (status === 'listening') {
+          // If it ends unexpectedly, just reset to idle. The user can click again.
+          setStatus('idle');
+        }
+      };
 
       recognitionRef.current = recognition;
     } else {
@@ -104,7 +113,7 @@ export default function InterviewPage() {
             recognitionRef.current.stop();
         }
     }
-  }, [router]);
+  }, [router, status]); // Added status to dependencies
 
   const startListening = () => {
     if (recognitionRef.current && status === 'idle') {
@@ -118,11 +127,22 @@ export default function InterviewPage() {
   const stopListeningAndEvaluate = async () => {
     if (recognitionRef.current && status === 'listening') {
       recognitionRef.current.stop();
-      setStatus('evaluating');
+      // Set status to evaluating immediately to prevent onend from firing and resetting to idle
+      setStatus('evaluating'); 
       
       const answerToEvaluate = finalTranscriptRef.current.trim();
       setTranscript(answerToEvaluate);
 
+      if (!answerToEvaluate) {
+        toast({
+          variant: "destructive",
+          title: "No answer detected",
+          description: "Please provide an answer before submitting.",
+        });
+        setStatus('idle');
+        return;
+      }
+      
       const currentQuestion = session!.questions[currentQuestionIndex];
       try {
         const evaluation = await evaluateUserAnswer({
