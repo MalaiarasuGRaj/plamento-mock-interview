@@ -60,22 +60,30 @@ const generateInterviewQuestionsFlow = ai.defineFlow(
     outputSchema: GenerateInterviewQuestionsOutputSchema,
   },
   async (input) => {
-    // Generate the main questions
-    const {output} = await generateInterviewQuestionsPrompt(input);
+    try {
+        // Generate the main questions
+        const {output} = await generateInterviewQuestionsPrompt(input);
 
-    if (!output) {
-      // Handle the case where the model returns no questions
-      throw new Error("The AI failed to generate interview questions. Please try again.");
+        if (!output) {
+          // Handle the case where the model returns no questions
+          throw new Error("The AI failed to generate interview questions. Please try again.");
+        }
+        
+        // Create the static first question
+        const firstQuestion: GenerateInterviewQuestionsOutput[0] = {
+            question: `Good Morning, Welcome ${input.userName}, please introduce yourself.`,
+            category: "Introduction",
+            expected_keywords: ["introduction", "experience", "background", "summary"]
+        };
+
+        // Prepend the static question to the generated list
+        return [firstQuestion, ...output];
+    } catch (error) {
+        console.error("Error in generateInterviewQuestionsFlow:", error);
+        if (error instanceof Error && (error.message.includes('503') || error.message.includes('overloaded'))) {
+            throw new Error("The AI service is currently overloaded. Please try again in a moment.");
+        }
+        throw new Error("An unexpected error occurred while generating questions. Please check the logs.");
     }
-    
-    // Create the static first question
-    const firstQuestion: GenerateInterviewQuestionsOutput[0] = {
-        question: `Good Morning, Welcome ${input.userName}, please introduce yourself.`,
-        category: "Introduction",
-        expected_keywords: ["introduction", "experience", "background", "summary"]
-    };
-
-    // Prepend the static question to the generated list
-    return [firstQuestion, ...output];
   }
 );
