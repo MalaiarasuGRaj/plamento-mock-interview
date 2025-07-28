@@ -35,7 +35,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/$
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   jobRole: z.string().min(2, "Job role is required."),
-  experience: z.string().min(2, "Experience level is required."),
+  experience: z.string().min(1, "Experience level is required."),
   interviewType: z.enum(["Technical", "HR"]),
   resume: z.any().refine((files) => files?.length === 1, "Resume is required."),
 });
