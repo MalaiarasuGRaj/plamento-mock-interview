@@ -89,6 +89,11 @@ export default function InterviewPage() {
             sessionRef.current = updatedSession;
             localStorage.setItem("interviewAceSession", JSON.stringify(updatedSession));
             setSession(updatedSession);
+
+            if (questionIndex === currentSession.questions.length - 1) {
+              setStatus('processing'); 
+              setTimeout(() => router.push("/results"), 2000);
+            }
         }
       };
       reader.onerror = () => {
@@ -101,16 +106,20 @@ export default function InterviewPage() {
     }
   };
 
+  const moveToNextQuestion = () => {
+    if (session && currentQuestionIndex < session.questions.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+      setTimeLeft(QUESTION_TIMER_SECONDS);
+      setStatus('idle');
+    } else {
+      setStatus('processing');
+    }
+  };
+
   const stopListeningAndProceed = useCallback(() => {
     setStatus('processing');
     
-    if (audioChunksRef.current.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "No answer detected",
-        description: "Moving to the next question. Please try to answer.",
-      });
-    } else {
+    if (audioChunksRef.current.length > 0) {
       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
       evaluateInBackground(audioBlob, currentQuestionIndex);
       audioChunksRef.current = [];
@@ -119,6 +128,10 @@ export default function InterviewPage() {
     moveToNextQuestion();
 
   }, [currentQuestionIndex, toast]);
+
+  const handleStop = useCallback(() => {
+    stopListeningAndProceed();
+  }, [stopListeningAndProceed]);
 
   useEffect(() => {
     const storedSession = localStorage.getItem("interviewAceSession");
@@ -180,10 +193,6 @@ export default function InterviewPage() {
     };
   }, [status]);
   
-  const handleStop = () => {
-    stopListeningAndProceed();
-  };
-
   const startListening = () => {
     if (mediaStreamRef.current && status === 'idle' && isCameraReady) {
       setTimeLeft(QUESTION_TIMER_SECONDS);
@@ -209,17 +218,6 @@ export default function InterviewPage() {
     if (mediaRecorderRef.current && status === 'listening') {
        mediaRecorderRef.current.stop();
     }
-  };
-
-  const moveToNextQuestion = () => {
-      if (session && currentQuestionIndex < session.questions.length - 1) {
-        setCurrentQuestionIndex(prev => prev + 1);
-        setTimeLeft(QUESTION_TIMER_SECONDS);
-        setStatus('idle');
-      } else {
-        setStatus('processing'); 
-        setTimeout(() => router.push("/results"), 2000);
-      }
   };
   
   const handleEndInterview = () => {
