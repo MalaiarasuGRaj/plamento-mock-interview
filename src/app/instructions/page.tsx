@@ -21,7 +21,7 @@ export default function InstructionsPage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 bg-gradient-to-br from-background to-secondary">
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 bg-background">
       <div className="absolute top-8 left-8 flex items-center gap-2">
         <Logo className="h-8 w-8 text-primary" />
         <h1 className="text-2xl font-bold font-headline text-primary">Interview Ace</h1>

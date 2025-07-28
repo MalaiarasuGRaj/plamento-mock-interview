@@ -165,7 +165,7 @@ export default function ResultsPage() {
   
   if (isLoading || !session) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-secondary/30">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
         <p className="text-lg text-muted-foreground font-semibold">Generating your performance report...</p>
       </div>
@@ -177,7 +177,7 @@ export default function ResultsPage() {
     : 0;
 
   return (
-    <main className="min-h-screen bg-secondary/30 p-4 sm:p-8">
+    <main className="min-h-screen bg-background p-4 sm:p-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="flex items-center gap-2">
             <Logo className="h-8 w-8 text-primary" />

@@ -248,7 +248,7 @@ export default function InterviewPage() {
 
   if (!session) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
       </div>
     );
@@ -256,7 +256,7 @@ export default function InterviewPage() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="flex min-h-screen items-center justify-center p-4 bg-background">
         <Alert variant="destructive" className="max-w-md">
           <Info className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
@@ -280,7 +280,7 @@ export default function InterviewPage() {
 
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 bg-secondary/50">
+    <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 bg-background">
       <div className="w-full max-w-6xl mx-auto space-y-4">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold font-headline text-primary">Interview in Progress</h2>
