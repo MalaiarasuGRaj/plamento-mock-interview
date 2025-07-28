@@ -25,7 +25,7 @@ export const Footer = () => {
           </div>
         </div>
 
-        <div className="mt-6 border-t border-gray-700 pt-6 text-center text-gray-300">
+        <div className="mt-6 pt-6 text-center text-gray-300">
           <p className="text-sm text-gray-400">
             &copy; 2024 Plamento. All rights reserved.
           </p>
