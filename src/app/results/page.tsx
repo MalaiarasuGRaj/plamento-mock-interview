@@ -12,7 +12,6 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Download, Home } from "lucide-react";
-import { Logo } from "@/components/icons";
 import jsPDF from "jspdf";
 
 export default function ResultsPage() {
@@ -165,7 +164,7 @@ export default function ResultsPage() {
   
   if (isLoading || !session) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
         <p className="text-lg text-muted-foreground font-semibold">Generating your performance report...</p>
       </div>
@@ -177,10 +176,9 @@ export default function ResultsPage() {
     : 0;
 
   return (
-    <main className="min-h-screen bg-background p-4 sm:p-8">
+    <main className="min-h-screen bg-black p-4 sm:p-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="flex items-center gap-2">
-            <Logo className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold font-headline text-primary">Interview Report</h1>
         </div>
 

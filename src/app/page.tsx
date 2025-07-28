@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,7 +28,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import type { InterviewSession } from "@/lib/types";
 import { Loader2, UploadCloud, Laptop } from "lucide-react";
-import { Logo } from "@/components/icons";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.mjs`;
@@ -102,10 +101,6 @@ export default function Home() {
         interviewType: data.interviewType,
       });
 
-      if (!questions || questions.length === 0) {
-        throw new Error("Failed to generate interview questions. Please try again.");
-      }
-
       const session: InterviewSession = {
         userDetails: {
           name: data.name,
@@ -123,18 +118,33 @@ export default function Home() {
 
     } catch (error) {
       console.error(error);
+      const errorMessage =
+        error instanceof Error ? error.message : "An unknown error occurred.";
+      
+      const friendlyMessage = errorMessage.includes('overloaded') || errorMessage.includes('503')
+        ? "The AI service is currently busy. Please try again in a few moments."
+        : errorMessage;
+
       toast({
         variant: "destructive",
         title: "Error",
-        description: error instanceof Error ? error.message : "An unknown error occurred.",
+        description: friendlyMessage,
       });
-      setIsLoading(false);
+    } finally {
+        setIsLoading(false);
     }
   };
   
-  if (isMobile) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 bg-background">
+  const experienceLevels = useMemo(() => [
+    "0-1 years", "2-5 years", "DD 5 - 8", "8 = 10", "10 - 12", "12 -15", "15+"
+  ], []);
+
+  const content = useMemo(() => {
+    if (isMobile === undefined) {
+      return null;
+    }
+    if (isMobile) {
+      return (
         <div className="text-center">
             <Laptop className="mx-auto h-24 w-24 text-primary mb-4" />
             <h1 className="text-2xl font-bold font-headline text-primary mb-2">Desktop Recommended</h1>
@@ -142,16 +152,10 @@ export default function Home() {
                 For the best experience, please use a desktop or laptop computer. The full interface is not optimized for mobile devices.
             </p>
         </div>
-      </main>
-    );
-  }
-
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 bg-background">
-      <div className="absolute top-8 left-8 flex items-center gap-2">
-        <Logo className="h-8 w-8 text-primary" />
-        <h1 className="text-2xl font-bold font-headline text-primary">Interview Ace</h1>
-      </div>
+      );
+    }
+    return (
+      <>
       <Card className="w-full max-w-lg shadow-2xl">
         <CardHeader>
           <CardTitle className="font-headline text-3xl text-center">Prepare for your Interview</CardTitle>
@@ -182,13 +186,9 @@ export default function Home() {
                       <SelectValue placeholder="Select experience level" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="0-1 years">0-1 years</SelectItem>
-                      <SelectItem value="2-5 years">2-5 years</SelectItem>
-                      <SelectItem value="5-8 years">5-8 years</SelectItem>
-                      <SelectItem value="8-10 years">8-10 years</SelectItem>
-                      <SelectItem value="10-12 years">10-12 years</SelectItem>
-                      <SelectItem value="12-15 years">12-15 years</SelectItem>
-                      <SelectItem value="15+ years">15+ years</SelectItem>
+                      {experienceLevels.map(level => (
+                        <SelectItem key={level} value={level}>{level}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                  {errors.experience && <p className="text-sm text-destructive">{errors.experience.message}</p>}
@@ -242,6 +242,14 @@ export default function Home() {
        <p className="text-center text-xs text-muted-foreground mt-4">
         © {new Date().getFullYear()} Interview Ace. All Rights Reserved.
       </p>
+      </>
+    );
+  }, [isMobile, isLoading, errors, fileName, handleSubmit, onSubmit, register, setValue, experienceLevels]);
+
+
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 bg-black">
+      {content}
     </main>
   );
 }
