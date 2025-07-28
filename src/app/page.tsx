@@ -37,7 +37,7 @@ const formSchema = z.object({
   jobRole: z.string().min(2, "Job role is required."),
   experience: z.string().min(2, "Experience level is required."),
   interviewType: z.enum(["Technical", "HR"]),
-  resume: z.instanceof(FileList).refine((files) => files?.length === 1, "Resume is required."),
+  resume: z.any().refine((files) => files?.length === 1, "Resume is required."),
 });
 
 type FormValues = z.infer<typeof formSchema>;
