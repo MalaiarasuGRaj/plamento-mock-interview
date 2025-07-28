@@ -199,7 +199,7 @@ export default function InterviewPage() {
       audioChunksRef.current = [];
       try {
         // Let browser choose the best mimeType
-        mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current, { mimeType: 'audio/webm;codecs=opus' });
+        mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current);
         mediaRecorderRef.current.ondataavailable = (event) => {
           if (event.data.size > 0) {
             audioChunksRef.current.push(event.data);
@@ -253,6 +253,16 @@ export default function InterviewPage() {
 
   const currentQuestion = session.questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / session.questions.length) * 100;
+
+  const isTechnical = session.userDetails.interviewType === 'Technical';
+  const interviewer = {
+    name: isTechnical ? "Tech Lead" : "HR Lead",
+    avatar: isTechnical 
+        ? "https://placehold.co/200x200.png" 
+        : "https://placehold.co/200x200.png",
+    aiHint: isTechnical ? "professional man" : "professional woman",
+  };
+
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 bg-secondary/50">
@@ -311,14 +321,14 @@ export default function InterviewPage() {
               <CardContent className="p-4 flex flex-col items-center justify-center text-center flex-grow">
                 <Avatar className="h-40 w-40 mb-4 border-4 border-primary/20">
                   <AvatarImage 
-                    src="/assets/HR.png" 
-                    data-ai-hint="professional woman" 
+                    src={interviewer.avatar}
+                    data-ai-hint={interviewer.aiHint}
                     onLoad={() => setIsAvatarLoaded(true)}
                   />
                   <AvatarFallback>...</AvatarFallback>
                 </Avatar>
                 {isAvatarLoaded ? (
-                  <p className="text-lg font-semibold">MGRaj - CHRO</p>
+                  <p className="text-lg font-semibold">{interviewer.name}</p>
                 ) : (
                   <p className="text-lg font-semibold">Joining...</p>
                 )}
@@ -371,3 +381,5 @@ export default function InterviewPage() {
     </div>
   );
 }
+
+    
