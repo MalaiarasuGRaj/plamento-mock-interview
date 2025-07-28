@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { evaluateUserAnswer } from "@/ai/flows/evaluate-user-answer";
+import { speechToText } from "@/ai/flows/speech-to-text";
 import type { InterviewSession, InterviewResult } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,14 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Mic, MicOff, Bot, Loader2, Info } from "lucide-react";
-
-// Extend window for SpeechRecognition
-declare global {
-  interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
-  }
-}
 
 export default function InterviewPage() {
   const router = useRouter();
@@ -32,60 +24,9 @@ export default function InterviewPage() {
   const [error, setError] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
-  const finalTranscriptRef = useRef("");
-  const listeningRef = useRef(false);
-
-  const setupSpeechRecognition = useCallback(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setError("Speech Recognition is not supported by your browser. Please use Google Chrome.");
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-
-    recognition.onresult = (event) => {
-      let interimTranscript = "";
-      let finalTranscript = "";
-      for (let i = 0; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript + ' ';
-        } else {
-          interimTranscript += event.results[i][0].transcript;
-        }
-      }
-      finalTranscriptRef.current = finalTranscript;
-      setTranscript(finalTranscript + interimTranscript);
-    };
-
-    recognition.onerror = (event) => {
-      console.error("Speech recognition error", event.error);
-       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          setError("Microphone access was denied. Please enable it in your browser settings to continue.");
-      } else if (event.error === 'network') {
-          setError("Network error with speech recognition. Please check your connection.");
-      } else {
-          setError(`Speech recognition failed: ${event.error}. Please check your microphone and try again.`);
-      }
-      setStatus('idle');
-      listeningRef.current = false;
-    };
-    
-    recognition.onend = () => {
-      if (listeningRef.current) {
-        // If it stops unexpectedly while it should be listening, restart it.
-        recognition.start();
-      } else {
-         setStatus('idle');
-      }
-    };
-    
-    recognitionRef.current = recognition;
-  }, []);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     const storedSession = localStorage.getItem("interviewAceSession");
@@ -95,104 +36,130 @@ export default function InterviewPage() {
     }
     const parsedSession: InterviewSession = JSON.parse(storedSession);
     setSession(parsedSession);
-    
-    setupSpeechRecognition();
 
     const getMediaPermissions = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            mediaStreamRef.current = stream;
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-            }
-            setIsCameraReady(true);
-        } catch (err) {
-            console.error("Media access error:", err);
-            setError("Camera and microphone access is required. Please enable it in your browser settings.");
-            setIsCameraReady(false);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        mediaStreamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
         }
+        setIsCameraReady(true);
+      } catch (err) {
+        console.error("Media access error:", err);
+        setError("Camera and microphone access is required. Please enable it in your browser settings.");
+        setIsCameraReady(false);
+      }
     };
-    
+
     getMediaPermissions();
 
     return () => {
-        listeningRef.current = false;
-        if (recognitionRef.current) {
-            recognitionRef.current.onend = null;
-            recognitionRef.current.onerror = null;
-            recognitionRef.current.onresult = null;
-            recognitionRef.current.stop();
-        }
-        if (mediaStreamRef.current) {
-            mediaStreamRef.current.getTracks().forEach(track => track.stop());
-        }
-    }
-  }, [router, setupSpeechRecognition]);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+        mediaRecorderRef.current.stop();
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [router]);
 
   const startListening = () => {
-    if (recognitionRef.current && status === 'idle' && isCameraReady) {
-      finalTranscriptRef.current = "";
+    if (mediaStreamRef.current && status === 'idle' && isCameraReady) {
       setTranscript("");
-      listeningRef.current = true;
-      recognitionRef.current.start();
-      setStatus('listening');
+      audioChunksRef.current = [];
+      try {
+        mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current);
+        mediaRecorderRef.current.ondataavailable = (event) => {
+          audioChunksRef.current.push(event.data);
+        };
+        mediaRecorderRef.current.onstop = stopListeningAndEvaluate;
+        mediaRecorderRef.current.start();
+        setStatus('listening');
+      } catch (err) {
+        console.error("MediaRecorder error:", err);
+        setError("Could not start recording. Please check your browser compatibility.");
+      }
+    }
+  };
+  
+  const finishRecording = () => {
+    if (mediaRecorderRef.current && status === 'listening') {
+       mediaRecorderRef.current.stop();
     }
   };
 
   const stopListeningAndEvaluate = async () => {
-    if (recognitionRef.current && status === 'listening') {
-      listeningRef.current = false;
-      recognitionRef.current.stop();
-      setStatus('evaluating'); 
-      
-      const answerToEvaluate = finalTranscriptRef.current.trim() || transcript.trim();
-
-      if (!answerToEvaluate) {
+      setStatus('evaluating');
+      if (audioChunksRef.current.length === 0) {
         toast({
           variant: "destructive",
           title: "No answer detected",
-          description: "Please provide an answer before submitting.",
+          description: "It seems we couldn't hear you. Please try answering again.",
         });
         setStatus('idle');
         return;
       }
       
-      const currentQuestion = session!.questions[currentQuestionIndex];
+      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      audioChunksRef.current = [];
+
       try {
-        const evaluation = await evaluateUserAnswer({
-          question: currentQuestion.question,
-          expectedKeywords: currentQuestion.expected_keywords.join(", "),
-          answerTranscript: answerToEvaluate,
-        });
-        
-        const newResult: InterviewResult = {
-          question: currentQuestion,
-          userAnswer: answerToEvaluate,
-          evaluation: {
-            ...evaluation,
-            relevance_score: evaluation.relevance_score ?? 0,
-            fluency_score: evaluation.fluency_score ?? 0,
-            confidence_score: evaluation.confidence_score ?? 0,
-            total_score: evaluation.total_score ?? 0,
-            feedback: evaluation.feedback ?? "No feedback provided."
-          }
+        // Convert blob to base64 data URI
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+            const base64Audio = reader.result as string;
+            
+            // 1. Speech to Text
+            const sttResult = await speechToText(base64Audio);
+            if (!sttResult.transcript) {
+                throw new Error(sttResult.error || "Speech-to-text failed.");
+            }
+            const answerToEvaluate = sttResult.transcript;
+            setTranscript(answerToEvaluate);
+
+            // 2. Evaluate Answer
+            const currentQuestion = session!.questions[currentQuestionIndex];
+            const evaluation = await evaluateUserAnswer({
+              question: currentQuestion.question,
+              expectedKeywords: currentQuestion.expected_keywords.join(", "),
+              answerTranscript: answerToEvaluate,
+            });
+
+            const newResult: InterviewResult = {
+              question: currentQuestion,
+              userAnswer: answerToEvaluate,
+              evaluation: {
+                ...evaluation,
+                relevance_score: evaluation.relevance_score ?? 0,
+                fluency_score: evaluation.fluency_score ?? 0,
+                confidence_score: evaluation.confidence_score ?? 0,
+                total_score: evaluation.total_score ?? 0,
+                feedback: evaluation.feedback ?? "No feedback provided."
+              }
+            };
+
+            setSession(prev => {
+              if (!prev) return null;
+              const updatedSession = { ...prev, results: [...prev.results, newResult] };
+              localStorage.setItem("interviewAceSession", JSON.stringify(updatedSession));
+              return updatedSession;
+            });
+
+            moveToNextQuestion();
         };
 
-        setSession(prev => {
-          if (!prev) return null;
-          const updatedSession = { ...prev, results: [...prev.results, newResult] };
-          localStorage.setItem("interviewAceSession", JSON.stringify(updatedSession));
-          return updatedSession;
-        });
-
-        moveToNextQuestion();
+        reader.onerror = () => {
+            throw new Error("Failed to read audio data.");
+        };
 
       } catch (e) {
-        console.error("Evaluation failed", e);
-        toast({ variant: "destructive", title: "Evaluation Error", description: "Could not evaluate the answer." });
+        console.error("Evaluation pipeline failed", e);
+        const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during evaluation.";
+        toast({ variant: "destructive", title: "Evaluation Error", description: errorMessage });
         setStatus('idle');
       }
-    }
   };
 
   const moveToNextQuestion = () => {
@@ -201,14 +168,13 @@ export default function InterviewPage() {
       if (currentQuestionIndex < session!.questions.length - 1) {
         setCurrentQuestionIndex(prev => prev + 1);
         setTranscript("");
-        finalTranscriptRef.current = "";
         setStatus('idle');
       } else {
         router.push("/results");
       }
     }, 3000);
   };
-  
+
   if (!session) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -244,7 +210,7 @@ export default function InterviewPage() {
         </div>
 
         <Progress value={progress} className="w-full" />
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="shadow-lg">
             <CardContent className="p-4">
@@ -260,33 +226,33 @@ export default function InterviewPage() {
           </Card>
 
           <Card className="shadow-lg flex flex-col">
-             <CardContent className="p-4 flex flex-col items-center justify-center text-center flex-grow">
-               <Avatar className="h-24 w-24 mb-4 border-4 border-primary/20">
-                 <AvatarImage src="https://placehold.co/128x128.png" data-ai-hint="professional avatar" />
-                 <AvatarFallback>AI</AvatarFallback>
-               </Avatar>
-               <div className="min-h-[100px] flex items-center justify-center">
+            <CardContent className="p-4 flex flex-col items-center justify-center text-center flex-grow">
+              <Avatar className="h-24 w-24 mb-4 border-4 border-primary/20">
+                <AvatarImage src="https://placehold.co/128x128.png" data-ai-hint="professional avatar" />
+                <AvatarFallback>AI</AvatarFallback>
+              </Avatar>
+              <div className="min-h-[100px] flex items-center justify-center">
                 <p className="text-lg font-semibold">{currentQuestion.question}</p>
-               </div>
-             </CardContent>
+              </div>
+            </CardContent>
           </Card>
         </div>
 
         <div className="text-center">
-            {status === 'listening' ? (
-                <Button onClick={stopListeningAndEvaluate} size="lg" className="rounded-full w-48 h-16 bg-accent hover:bg-accent/90">
-                    <MicOff className="mr-2 h-6 w-6" />
-                    I'm Done
-                </Button>
-            ) : (
-                <Button onClick={startListening} size="lg" className="rounded-full w-48 h-16" disabled={status !== 'idle' || !isCameraReady}>
-                    {status === 'idle' && <><Mic className="mr-2 h-6 w-6" /> Answer Now</>}
-                    {status === 'evaluating' && <><Loader2 className="mr-2 h-6 w-6 animate-spin" /> Evaluating...</>}
-                    {status === 'next_question' && <><Bot className="mr-2 h-6 w-6" /> Next Question...</>}
-                </Button>
-            )}
+          {status === 'listening' ? (
+            <Button onClick={finishRecording} size="lg" className="rounded-full w-48 h-16 bg-accent hover:bg-accent/90">
+              <MicOff className="mr-2 h-6 w-6" />
+              I'm Done
+            </Button>
+          ) : (
+            <Button onClick={startListening} size="lg" className="rounded-full w-48 h-16" disabled={status !== 'idle' || !isCameraReady}>
+              {status === 'idle' && <><Mic className="mr-2 h-6 w-6" /> Answer Now</>}
+              {status === 'evaluating' && <><Loader2 className="mr-2 h-6 w-6 animate-spin" /> Evaluating...</>}
+              {status === 'next_question' && <><Bot className="mr-2 h-6 w-6" /> Next Question...</>}
+            </Button>
+          )}
         </div>
-        
+
         <Card className="min-h-[120px]">
           <CardContent className="p-4">
             <h3 className="font-semibold text-sm mb-2">Your Answer:</h3>
