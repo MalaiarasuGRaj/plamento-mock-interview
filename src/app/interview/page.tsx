@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -102,6 +103,7 @@ export default function InterviewPage() {
 
   const stopListeningAndProceed = useCallback(() => {
     setStatus('processing');
+    
     if (audioChunksRef.current.length === 0) {
       toast({
         variant: "destructive",
@@ -178,16 +180,22 @@ export default function InterviewPage() {
     };
   }, [status]);
   
+  const handleStop = () => {
+    stopListeningAndProceed();
+  };
+
   const startListening = () => {
     if (mediaStreamRef.current && status === 'idle' && isCameraReady) {
       setTimeLeft(QUESTION_TIMER_SECONDS);
       audioChunksRef.current = [];
       try {
-        mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current, { mimeType: 'audio/webm' });
+        mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current);
         mediaRecorderRef.current.ondataavailable = (event) => {
-          audioChunksRef.current.push(event.data);
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
+          }
         };
-        mediaRecorderRef.current.onstop = stopListeningAndProceed;
+        mediaRecorderRef.current.onstop = handleStop;
         mediaRecorderRef.current.start();
         setStatus('listening');
       } catch (err) {
@@ -249,48 +257,40 @@ export default function InterviewPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 bg-secondary/50">
       <div className="w-full max-w-6xl mx-auto space-y-4">
-         <div className="w-full max-w-6xl mx-auto space-y-4">
-          {isCameraReady && isAvatarLoaded ? (
-            <>
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold font-headline text-primary">Interview in Progress</h2>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <p className="font-semibold">{session.userDetails.name}</p>
-                    <p className="text-sm text-muted-foreground">{session.userDetails.jobRole}</p>
-                  </div>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm">
-                        <LogOut className="mr-2 h-4 w-4" /> End
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure you want to end the interview?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {session.results.length > 0
-                            ? "You will be taken to the results page for the questions you have completed."
-                            : "Your progress will not be saved, and you will be returned to the home page."
-                          }
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleEndInterview}>
-                          End Interview
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </div>
-              <Progress value={progress} className="w-full" />
-            </>
-          ) : (
-            <div className="h-24" /> 
-          )}
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold font-headline text-primary">Interview in Progress</h2>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="font-semibold">{session.userDetails.name}</p>
+              <p className="text-sm text-muted-foreground">{session.userDetails.jobRole}</p>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <LogOut className="mr-2 h-4 w-4" /> End
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure you want to end the interview?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {session.results.length > 0
+                      ? "You will be taken to the results page for the questions you have completed."
+                      : "Your progress will not be saved, and you will be returned to the home page."
+                    }
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleEndInterview}>
+                    End Interview
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
+        <Progress value={progress} className="w-full" />
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="shadow-lg">
