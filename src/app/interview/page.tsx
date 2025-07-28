@@ -272,33 +272,44 @@ export default function InterviewPage() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg flex flex-col">
+          <Card className="shadow-lg flex flex-col items-center justify-center">
             <CardContent className="p-4 flex flex-col items-center justify-center text-center flex-grow">
               <Avatar className="h-24 w-24 mb-4 border-4 border-primary/20">
                 <AvatarImage src="https://placehold.co/128x128.png" data-ai-hint="professional avatar" />
                 <AvatarFallback>AI</AvatarFallback>
               </Avatar>
-              <div className="min-h-[100px] flex items-center justify-center">
-                <p className="text-lg font-semibold">{currentQuestion.question}</p>
-              </div>
+              <p className="text-lg font-semibold">Virtual Interviewer</p>
             </CardContent>
           </Card>
         </div>
 
-        <div className="text-center">
-          {status === 'listening' ? (
-            <Button onClick={finishRecording} size="lg" className="rounded-full w-48 h-16 bg-accent hover:bg-accent/90">
-              <MicOff className="mr-2 h-6 w-6" />
-              I'm Done
-            </Button>
-          ) : (
-            <Button onClick={startListening} size="lg" className="rounded-full w-48 h-16" disabled={status !== 'idle' || !isCameraReady}>
-              {status === 'idle' && <><Mic className="mr-2 h-6 w-6" /> Answer Now</>}
-              {status === 'evaluating' && <><Loader2 className="mr-2 h-6 w-6 animate-spin" /> Evaluating...</>}
-              {status === 'next_question' && <><Bot className="mr-2 h-6 w-6" /> Next Question...</>}
-            </Button>
-          )}
-        </div>
+         <Card>
+          <CardContent className="p-4 flex items-center justify-between gap-4">
+            <div className="flex-grow">
+              <p className="font-semibold text-sm mb-1">Question {currentQuestionIndex + 1}:</p>
+              <p className="text-lg">{currentQuestion.question}</p>
+            </div>
+            <div className="flex-shrink-0">
+                {status === 'listening' ? (
+                    <Button onClick={finishRecording} size="icon" className="rounded-full w-16 h-16 bg-accent hover:bg-accent/90">
+                        <MicOff className="h-8 w-8" />
+                        <span className="sr-only">I'm Done</span>
+                    </Button>
+                ) : (
+                    <Button onClick={startListening} size="icon" className="rounded-full w-16 h-16" disabled={status !== 'idle' || !isCameraReady}>
+                        {status === 'idle' && <Mic className="h-8 w-8" />}
+                        {status === 'evaluating' && <Loader2 className="h-8 w-8 animate-spin" />}
+                        {status === 'next_question' && <Bot className="h-8 w-8" />}
+                        <span className="sr-only">
+                           {status === 'idle' && 'Answer Now'}
+                           {status === 'evaluating' && 'Evaluating...'}
+                           {status === 'next_question' && 'Next Question...'}
+                        </span>
+                    </Button>
+                )}
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="min-h-[120px]">
           <CardContent className="p-4">
