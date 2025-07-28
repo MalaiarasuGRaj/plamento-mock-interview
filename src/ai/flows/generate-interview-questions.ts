@@ -42,7 +42,7 @@ const generateInterviewQuestionsPrompt = ai.definePrompt({
   name: 'generateInterviewQuestionsPrompt',
   input: {schema: GenerateInterviewQuestionsInputSchema},
   output: {schema: GenerateInterviewQuestionsOutputSchema},
-  prompt: `You are a smart virtual interviewer. Generate 7-9 questions tailored to the following:\n\nResume:\n"""\n{{{resumeText}}}\n"""\n\nJob Role: {{{jobRole}}}\nExperience: {{{experience}}}\nInterview Type: {{{interviewType}}} (HR or Technical)\n\nReturn JSON list like:\n[
+  prompt: `You are a smart virtual interviewer. Generate 10-12 questions tailored to the following:\n\nResume:\n"""\n{{{resumeText}}}\n"""\n\nJob Role: {{{jobRole}}}\nExperience: {{{experience}}}\nInterview Type: {{{interviewType}}} (HR or Technical)\n\nReturn JSON list like:\n[
   {
     "question": "Tell me about a time you overcame a challenge.",
     "category": "behavioral",
