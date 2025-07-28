@@ -260,7 +260,7 @@ export default function InterviewPage() {
     name: isTechnical ? "Tech Lead" : "HR Lead",
     avatar: isTechnical 
         ? "https://placehold.co/200x200/4F46E5/FFFFFF.png"
-        : "https://placehold.co/200x200/F472B6/FFFFFF.png",
+        : "https://placehold.co/200x200/EC4899/FFFFFF.png",
     aiHint: isTechnical ? "professional man" : "professional woman",
   };
 
