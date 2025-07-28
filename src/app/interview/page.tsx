@@ -109,11 +109,11 @@ export default function InterviewPage() {
         description: "Moving to the next question. Please try to answer.",
       });
     } else {
-      const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorderRef.current?.mimeType || 'audio/webm' });
+      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
       evaluateInBackground(audioBlob, currentQuestionIndex);
       audioChunksRef.current = [];
     }
-
+    
     moveToNextQuestion();
 
   }, [currentQuestionIndex, toast]);
@@ -183,7 +183,7 @@ export default function InterviewPage() {
       setTimeLeft(QUESTION_TIMER_SECONDS);
       audioChunksRef.current = [];
       try {
-        mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current);
+        mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current, { mimeType: 'audio/webm' });
         mediaRecorderRef.current.ondataavailable = (event) => {
           audioChunksRef.current.push(event.data);
         };
@@ -371,3 +371,5 @@ export default function InterviewPage() {
     </div>
   );
 }
+
+    
