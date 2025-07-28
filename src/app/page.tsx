@@ -168,7 +168,11 @@ export default function Home() {
                     <SelectContent>
                       <SelectItem value="0-1 years">0-1 years</SelectItem>
                       <SelectItem value="2-5 years">2-5 years</SelectItem>
-                      <SelectItem value="5+ years">5+ years</SelectItem>
+                      <SelectItem value="5-8 years">5-8 years</SelectItem>
+                      <SelectItem value="8-10 years">8-10 years</SelectItem>
+                      <SelectItem value="10-12 years">10-12 years</SelectItem>
+                      <SelectItem value="12-15 years">12-15 years</SelectItem>
+                      <SelectItem value="15+ years">15+ years</SelectItem>
                     </SelectContent>
                   </Select>
                  {errors.experience && <p className="text-sm text-destructive">{errors.experience.message}</p>}
