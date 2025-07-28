@@ -62,7 +62,10 @@ export default function InterviewPage() {
         }
         const answerTranscript = sttResult.transcript;
 
-        const currentQuestion = sessionRef.current!.questions[questionIndex];
+        const currentSession = sessionRef.current;
+        if (!currentSession) return;
+        
+        const currentQuestion = currentSession.questions[questionIndex];
         const evaluation = await evaluateUserAnswer({
           question: currentQuestion.question,
           expectedKeywords: currentQuestion.expected_keywords.join(", "),
@@ -82,17 +85,19 @@ export default function InterviewPage() {
           }
         };
 
-        const currentSession = sessionRef.current;
+        
         if (currentSession) {
             const updatedResults = [...currentSession.results, newResult];
             const updatedSession = { ...currentSession, results: updatedResults };
             sessionRef.current = updatedSession;
             localStorage.setItem("interviewAceSession", JSON.stringify(updatedSession));
-            setSession(updatedSession);
+            
+            // This needs to be done via a ref as setSession is not immediate
+            // and we rely on the updated session for the final check.
+            setSession(prev => prev ? ({...prev, results: [...prev.results, newResult]}) : null);
 
             if (questionIndex === currentSession.questions.length - 1) {
-              setStatus('processing'); 
-              setTimeout(() => router.push("/results"), 2000);
+              router.push("/results");
             }
         }
       };
@@ -103,35 +108,30 @@ export default function InterviewPage() {
       console.error("Background evaluation failed for question " + questionIndex, e);
       const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during evaluation.";
       toast({ variant: "destructive", title: `Evaluation Error Q${questionIndex + 1}`, description: errorMessage });
+      if (questionIndex === sessionRef.current!.questions.length - 1) {
+        router.push("/results");
+      }
     }
   };
-
-  const moveToNextQuestion = () => {
-    if (session && currentQuestionIndex < session.questions.length - 1) {
+  
+  const moveToNextQuestion = useCallback(() => {
+    if (sessionRef.current && currentQuestionIndex < sessionRef.current.questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
       setTimeLeft(QUESTION_TIMER_SECONDS);
       setStatus('idle');
     } else {
-      setStatus('processing');
+      setStatus('processing'); // Final processing state
     }
-  };
+  }, [currentQuestionIndex]);
 
-  const stopListeningAndProceed = useCallback(() => {
-    setStatus('processing');
-    
+  const handleStop = useCallback(() => {
     if (audioChunksRef.current.length > 0) {
-      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm;codecs=opus' });
       evaluateInBackground(audioBlob, currentQuestionIndex);
       audioChunksRef.current = [];
     }
-    
     moveToNextQuestion();
-
-  }, [currentQuestionIndex, toast]);
-
-  const handleStop = useCallback(() => {
-    stopListeningAndProceed();
-  }, [stopListeningAndProceed]);
+  }, [currentQuestionIndex, moveToNextQuestion]);
 
   useEffect(() => {
     const storedSession = localStorage.getItem("interviewAceSession");
@@ -198,7 +198,8 @@ export default function InterviewPage() {
       setTimeLeft(QUESTION_TIMER_SECONDS);
       audioChunksRef.current = [];
       try {
-        mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current);
+        // Let browser choose the best mimeType
+        mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current, { mimeType: 'audio/webm;codecs=opus' });
         mediaRecorderRef.current.ondataavailable = (event) => {
           if (event.data.size > 0) {
             audioChunksRef.current.push(event.data);
@@ -216,6 +217,7 @@ export default function InterviewPage() {
   
   const finishRecording = () => {
     if (mediaRecorderRef.current && status === 'listening') {
+       setStatus('processing');
        mediaRecorderRef.current.stop();
     }
   };
@@ -349,7 +351,7 @@ export default function InterviewPage() {
                           <Button onClick={startListening} size="icon" className="rounded-full w-16 h-16" disabled={status !== 'idle'}>
                               {status === 'idle' && <Mic className="h-8 w-8" />}
                               {status === 'processing' && (
-                                currentQuestionIndex < session.questions.length - 1 
+                                sessionRef.current && currentQuestionIndex < sessionRef.current.questions.length - 1 
                                 ? <Loader2 className="h-8 w-8 animate-spin" />
                                 : <Check className="h-8 w-8" />
                               )}
@@ -369,5 +371,3 @@ export default function InterviewPage() {
     </div>
   );
 }
-
-    
