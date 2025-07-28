@@ -201,7 +201,7 @@ export default function ResultsPage() {
                   <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                </div>
             )}
-          </Create>
+          </CardContent>
         </Card>
 
         <Card className="shadow-xl">
