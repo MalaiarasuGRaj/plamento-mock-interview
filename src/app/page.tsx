@@ -116,7 +116,7 @@ export default function Home() {
       };
 
       localStorage.setItem("interviewAceSession", JSON.stringify(session));
-      router.push("/interview");
+      router.push("/instructions");
 
     } catch (error) {
       console.error(error);
