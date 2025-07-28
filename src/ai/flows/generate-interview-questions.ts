@@ -65,7 +65,7 @@ const generateInterviewQuestionsFlow = ai.defineFlow(
 
     if (!output) {
       // Handle the case where the model returns no questions
-      return [];
+      throw new Error("The AI failed to generate interview questions. Please try again.");
     }
     
     // Create the static first question
