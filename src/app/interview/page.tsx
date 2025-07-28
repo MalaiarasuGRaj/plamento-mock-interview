@@ -124,8 +124,8 @@ export default function InterviewPage() {
             
             // 1. Speech to Text
             const sttResult = await speechToText(base64Audio);
-            if (!sttResult.transcript) {
-                throw new Error(sttResult.error || "Speech-to-text failed.");
+            if (sttResult.error || !sttResult.transcript) {
+              throw new Error(sttResult.error || "Speech-to-text failed. The model returned an empty transcript.");
             }
             const answerToEvaluate = sttResult.transcript;
             setTranscript(answerToEvaluate);
@@ -321,5 +321,3 @@ export default function InterviewPage() {
     </div>
   );
 }
-
-    
