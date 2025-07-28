@@ -33,6 +33,7 @@ export default function InterviewPage() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     const storedSession = localStorage.getItem("interviewAceSession");
@@ -62,25 +63,42 @@ export default function InterviewPage() {
 
       recognitionRef.current.onerror = (event) => {
         console.error("Speech recognition error", event.error);
-        setError("Speech recognition failed. Please check your microphone and permissions.");
+        if (event.error === 'not-allowed') {
+            setError("Microphone access was denied. Please enable it in your browser settings to continue.");
+        } else {
+            setError("Speech recognition failed. Please check your microphone and try again.");
+        }
         setStatus('idle');
       };
     } else {
       setError("Speech Recognition is not supported by your browser. Please use Google Chrome.");
     }
 
-    // Setup Camera
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then((stream) => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+    // Setup Camera and Microphone
+    const getMediaPermissions = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            mediaStreamRef.current = stream;
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
+            setIsCameraReady(true);
+        } catch (err) {
+            console.error("Media access error:", err);
+            setError("Camera and microphone access is required. Please enable it in your browser settings.");
         }
-        setIsCameraReady(true);
-      })
-      .catch(err => {
-        console.error("Camera access error:", err);
-        setError("Camera and microphone access is required. Please enable it in your browser settings.");
-      });
+    };
+    
+    getMediaPermissions();
+
+    return () => {
+        if (mediaStreamRef.current) {
+            mediaStreamRef.current.getTracks().forEach(track => track.stop());
+        }
+        if (recognitionRef.current) {
+            recognitionRef.current.stop();
+        }
+    }
   }, [router]);
 
   const startListening = () => {
@@ -214,7 +232,7 @@ export default function InterviewPage() {
                     I'm Done
                 </Button>
             ) : (
-                <Button onClick={startListening} size="lg" className="rounded-full w-48 h-16" disabled={status !== 'idle'}>
+                <Button onClick={startListening} size="lg" className="rounded-full w-48 h-16" disabled={status !== 'idle' || !isCameraReady}>
                     {status === 'idle' && <><Mic className="mr-2 h-6 w-6" /> Answer Now</>}
                     {status === 'evaluating' && <><Loader2 className="mr-2 h-6 w-6 animate-spin" /> Evaluating...</>}
                     {status === 'next_question' && <><Bot className="mr-2 h-6 w-6" /> Next Question...</>}
