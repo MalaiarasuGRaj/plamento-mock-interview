@@ -274,7 +274,7 @@ export default function InterviewPage() {
 
           <Card className="shadow-lg flex flex-col items-center justify-center">
             <CardContent className="p-4 flex flex-col items-center justify-center text-center flex-grow">
-              <Avatar className="h-24 w-24 mb-4 border-4 border-primary/20">
+              <Avatar className="h-40 w-40 mb-4 border-4 border-primary/20">
                 <AvatarImage src="/assets/HR.png" data-ai-hint="professional woman" />
                 <AvatarFallback>AI</AvatarFallback>
               </Avatar>
