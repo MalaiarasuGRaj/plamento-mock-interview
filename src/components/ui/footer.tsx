@@ -4,7 +4,7 @@ import { Linkedin, Mail } from 'lucide-react';
 
 export const Footer = () => {
   return (
-    <footer className="mt-auto bg-black py-8 text-gray-300 border-t border-gray-800">
+    <footer className="mt-auto bg-black py-8 text-gray-300">
       <div className="mx-auto max-w-7xl px-4 text-gray-300 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center justify-center gap-8 text-gray-300 md:flex-row">
           <div className="flex items-center gap-3">
@@ -25,7 +25,7 @@ export const Footer = () => {
           </div>
         </div>
 
-        <div className="mt-6 pt-6 text-center text-gray-300">
+        <div className="mt-6 border-t border-gray-800 pt-6 text-center text-gray-300">
           <p className="text-sm text-gray-400">
             &copy; 2024 Plamento. All rights reserved.
           </p>
