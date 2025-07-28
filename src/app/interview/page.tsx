@@ -34,6 +34,7 @@ export default function InterviewPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const finalTranscriptRef = useRef("");
 
   useEffect(() => {
     const storedSession = localStorage.getItem("interviewAceSession");
@@ -47,29 +48,33 @@ export default function InterviewPage() {
     // Setup Speech Recognition
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
 
-      recognitionRef.current.onresult = (event) => {
-        let finalTranscript = "";
+      recognition.onresult = (event) => {
+        let interimTranscript = "";
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
+            finalTranscriptRef.current += event.results[i][0].transcript + ' ';
+          } else {
+            interimTranscript += event.results[i][0].transcript;
           }
         }
-        setTranscript((prev) => prev + finalTranscript);
+        setTranscript(finalTranscriptRef.current + interimTranscript);
       };
 
-      recognitionRef.current.onerror = (event) => {
+      recognition.onerror = (event) => {
         console.error("Speech recognition error", event.error);
-        if (event.error === 'not-allowed') {
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
             setError("Microphone access was denied. Please enable it in your browser settings to continue.");
         } else {
-            setError("Speech recognition failed. Please check your microphone and try again.");
+            setError(`Speech recognition failed: ${event.error}. Please check your microphone and try again.`);
         }
         setStatus('idle');
       };
+
+      recognitionRef.current = recognition;
     } else {
       setError("Speech Recognition is not supported by your browser. Please use Google Chrome.");
     }
@@ -103,6 +108,7 @@ export default function InterviewPage() {
 
   const startListening = () => {
     if (recognitionRef.current && status === 'idle') {
+      finalTranscriptRef.current = "";
       setTranscript("");
       recognitionRef.current.start();
       setStatus('listening');
@@ -114,17 +120,20 @@ export default function InterviewPage() {
       recognitionRef.current.stop();
       setStatus('evaluating');
       
+      const answerToEvaluate = finalTranscriptRef.current.trim();
+      setTranscript(answerToEvaluate);
+
       const currentQuestion = session!.questions[currentQuestionIndex];
       try {
         const evaluation = await evaluateUserAnswer({
           question: currentQuestion.question,
           expectedKeywords: currentQuestion.expected_keywords.join(", "),
-          answerTranscript: transcript,
+          answerTranscript: answerToEvaluate,
         });
         
         const newResult: InterviewResult = {
           question: currentQuestion,
-          userAnswer: transcript,
+          userAnswer: answerToEvaluate,
           evaluation: {
             ...evaluation,
             relevance_score: evaluation.relevance_score ?? 0,
