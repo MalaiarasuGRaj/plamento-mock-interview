@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Mic, MicOff, Bot, Loader2, Info, LogOut, Timer } from "lucide-react";
+import { Mic, MicOff, Bot, Loader2, Info, LogOut, Timer, Check } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,8 +31,7 @@ export default function InterviewPage() {
   const { toast } = useToast();
   const [session, setSession] = useState<InterviewSession | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [status, setStatus] = useState<'idle' | 'listening' | 'evaluating' | 'next_question'>('idle');
-  const [transcript, setTranscript] = useState("");
+  const [status, setStatus] = useState<'idle' | 'listening' | 'processing'>('idle');
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isAvatarLoaded, setIsAvatarLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +42,81 @@ export default function InterviewPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionRef = useRef<InterviewSession | null>(null);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+  
+  const evaluateInBackground = async (audioBlob: Blob, questionIndex: number) => {
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      reader.onloadend = async () => {
+        const base64Audio = reader.result as string;
+
+        const sttResult = await speechToText(base64Audio);
+        if (sttResult.error || !sttResult.transcript) {
+          throw new Error(sttResult.error || "Speech-to-text failed.");
+        }
+        const answerTranscript = sttResult.transcript;
+
+        const currentQuestion = sessionRef.current!.questions[questionIndex];
+        const evaluation = await evaluateUserAnswer({
+          question: currentQuestion.question,
+          expectedKeywords: currentQuestion.expected_keywords.join(", "),
+          answerTranscript: answerTranscript,
+        });
+
+        const newResult: InterviewResult = {
+          question: currentQuestion,
+          userAnswer: answerTranscript,
+          evaluation: {
+            ...evaluation,
+            relevance_score: evaluation.relevance_score ?? 0,
+            fluency_score: evaluation.fluency_score ?? 0,
+            confidence_score: evaluation.confidence_score ?? 0,
+            total_score: evaluation.total_score ?? 0,
+            feedback: evaluation.feedback ?? "No feedback provided."
+          }
+        };
+
+        const currentSession = sessionRef.current;
+        if (currentSession) {
+            const updatedResults = [...currentSession.results, newResult];
+            const updatedSession = { ...currentSession, results: updatedResults };
+            sessionRef.current = updatedSession;
+            localStorage.setItem("interviewAceSession", JSON.stringify(updatedSession));
+            setSession(updatedSession);
+        }
+      };
+      reader.onerror = () => {
+        throw new Error("Failed to read audio data.");
+      };
+    } catch (e) {
+      console.error("Background evaluation failed for question " + questionIndex, e);
+      const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during evaluation.";
+      toast({ variant: "destructive", title: `Evaluation Error Q${questionIndex + 1}`, description: errorMessage });
+    }
+  };
+
+  const stopListeningAndProceed = useCallback(() => {
+    setStatus('processing');
+    if (audioChunksRef.current.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "No answer detected",
+        description: "Moving to the next question. Please try to answer.",
+      });
+    } else {
+      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      evaluateInBackground(audioBlob, currentQuestionIndex);
+      audioChunksRef.current = [];
+    }
+
+    moveToNextQuestion();
+
+  }, [currentQuestionIndex, toast]);
 
   useEffect(() => {
     const storedSession = localStorage.getItem("interviewAceSession");
@@ -81,75 +155,6 @@ export default function InterviewPage() {
     };
   }, [router]);
 
-  const stopListeningAndEvaluate = useCallback(async () => {
-      setStatus('evaluating');
-      if (audioChunksRef.current.length === 0) {
-        toast({
-          variant: "destructive",
-          title: "No answer detected",
-          description: "It seems we couldn't hear you. Please try answering again.",
-        });
-        setStatus('idle');
-        return;
-      }
-      
-      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-      audioChunksRef.current = [];
-
-      try {
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = async () => {
-            const base64Audio = reader.result as string;
-            
-            const sttResult = await speechToText(base64Audio);
-            if (sttResult.error || !sttResult.transcript) {
-              throw new Error(sttResult.error || "Speech-to-text failed. The model returned an empty transcript.");
-            }
-            const answerToEvaluate = sttResult.transcript;
-            setTranscript(answerToEvaluate);
-
-            const currentQuestion = session!.questions[currentQuestionIndex];
-            const evaluation = await evaluateUserAnswer({
-              question: currentQuestion.question,
-              expectedKeywords: currentQuestion.expected_keywords.join(", "),
-              answerTranscript: answerToEvaluate,
-            });
-
-            const newResult: InterviewResult = {
-              question: currentQuestion,
-              userAnswer: answerToEvaluate,
-              evaluation: {
-                ...evaluation,
-                relevance_score: evaluation.relevance_score ?? 0,
-                fluency_score: evaluation.fluency_score ?? 0,
-                confidence_score: evaluation.confidence_score ?? 0,
-                total_score: evaluation.total_score ?? 0,
-                feedback: evaluation.feedback ?? "No feedback provided."
-              }
-            };
-
-            setSession(prev => {
-              if (!prev) return null;
-              const updatedSession = { ...prev, results: [...prev.results, newResult] };
-              localStorage.setItem("interviewAceSession", JSON.stringify(updatedSession));
-              return updatedSession;
-            });
-
-            moveToNextQuestion();
-        };
-
-        reader.onerror = () => {
-            throw new Error("Failed to read audio data.");
-        };
-
-      } catch (e) {
-        console.error("Evaluation pipeline failed", e);
-        const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during evaluation.";
-        toast({ variant: "destructive", title: "Evaluation Error", description: errorMessage });
-        setStatus('idle');
-      }
-  }, [session, currentQuestionIndex, toast, router]);
 
   useEffect(() => {
     if (status === 'listening') {
@@ -175,15 +180,14 @@ export default function InterviewPage() {
   
   const startListening = () => {
     if (mediaStreamRef.current && status === 'idle' && isCameraReady) {
-      setTranscript("");
       setTimeLeft(QUESTION_TIMER_SECONDS);
       audioChunksRef.current = [];
       try {
-        mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current);
+        mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current, { mimeType: 'audio/webm' });
         mediaRecorderRef.current.ondataavailable = (event) => {
           audioChunksRef.current.push(event.data);
         };
-        mediaRecorderRef.current.onstop = stopListeningAndEvaluate;
+        mediaRecorderRef.current.onstop = stopListeningAndProceed;
         mediaRecorderRef.current.start();
         setStatus('listening');
       } catch (err) {
@@ -200,21 +204,18 @@ export default function InterviewPage() {
   };
 
   const moveToNextQuestion = () => {
-    setStatus('next_question');
-    setTimeout(() => {
       if (session && currentQuestionIndex < session.questions.length - 1) {
         setCurrentQuestionIndex(prev => prev + 1);
-        setTranscript("");
         setTimeLeft(QUESTION_TIMER_SECONDS);
         setStatus('idle');
       } else {
-        router.push("/results");
+        setStatus('processing'); 
+        setTimeout(() => router.push("/results"), 2000);
       }
-    }, 3000);
   };
   
   const handleEndInterview = () => {
-    if (session && session.results.length > 0) {
+    if (sessionRef.current && sessionRef.current.results.length > 0) {
       router.push("/results");
     } else {
       localStorage.removeItem("interviewAceSession");
@@ -248,45 +249,48 @@ export default function InterviewPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 bg-secondary/50">
       <div className="w-full max-w-6xl mx-auto space-y-4">
-        {isCameraReady && isAvatarLoaded && (
-          <>
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold font-headline text-primary">Interview in Progress</h2>
-              <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <p className="font-semibold">{session.userDetails.name}</p>
-                  <p className="text-sm text-muted-foreground">{session.userDetails.jobRole}</p>
+         <div className="w-full max-w-6xl mx-auto space-y-4">
+          {isCameraReady && isAvatarLoaded ? (
+            <>
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold font-headline text-primary">Interview in Progress</h2>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <p className="font-semibold">{session.userDetails.name}</p>
+                    <p className="text-sm text-muted-foreground">{session.userDetails.jobRole}</p>
+                  </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm">
+                        <LogOut className="mr-2 h-4 w-4" /> End
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure you want to end the interview?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {session.results.length > 0
+                            ? "You will be taken to the results page for the questions you have completed."
+                            : "Your progress will not be saved, and you will be returned to the home page."
+                          }
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleEndInterview}>
+                          End Interview
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
-                 <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm">
-                      <LogOut className="mr-2 h-4 w-4" /> End
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you sure you want to end the interview?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        {session.results.length > 0 
-                          ? "You will be taken to the results page for the questions you have completed."
-                          : "Your progress will not be saved, and you will be returned to the home page."
-                        }
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleEndInterview}>
-                        End Interview
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
               </div>
-            </div>
-
-            <Progress value={progress} className="w-full" />
-          </>
-        )}
+              <Progress value={progress} className="w-full" />
+            </>
+          ) : (
+            <div className="h-24" /> 
+          )}
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="shadow-lg">
@@ -303,7 +307,6 @@ export default function InterviewPage() {
             </CardContent>
           </Card>
 
-          {isCameraReady && (
             <Card className="shadow-lg flex flex-col items-center justify-center">
               <CardContent className="p-4 flex flex-col items-center justify-center text-center flex-grow">
                 <Avatar className="h-40 w-40 mb-4 border-4 border-primary/20">
@@ -314,10 +317,13 @@ export default function InterviewPage() {
                   />
                   <AvatarFallback>...</AvatarFallback>
                 </Avatar>
-                {isAvatarLoaded && <p className="text-lg font-semibold">MGRaj - CHRO</p>}
+                {isAvatarLoaded ? (
+                  <p className="text-lg font-semibold">MGRaj - CHRO</p>
+                ) : (
+                  <p className="text-lg font-semibold">Joining...</p>
+                )}
               </CardContent>
             </Card>
-          )}
         </div>
 
         {isCameraReady && isAvatarLoaded && (
@@ -325,7 +331,7 @@ export default function InterviewPage() {
             <Card>
               <CardContent className="p-4 flex items-center justify-between gap-4">
                 <div className="flex-grow">
-                  <p className="font-semibold text-sm mb-1">Question {currentQuestionIndex + 1}:</p>
+                  <p className="font-semibold text-sm mb-1">Question {currentQuestionIndex + 1} of {session.questions.length}:</p>
                   <p className="text-lg">{currentQuestion.question}</p>
                 </div>
                  <div className="flex items-center gap-4">
@@ -344,12 +350,14 @@ export default function InterviewPage() {
                       ) : (
                           <Button onClick={startListening} size="icon" className="rounded-full w-16 h-16" disabled={status !== 'idle'}>
                               {status === 'idle' && <Mic className="h-8 w-8" />}
-                              {status === 'evaluating' && <Loader2 className="h-8 w-8 animate-spin" />}
-                              {status === 'next_question' && <Bot className="h-8 w-8" />}
+                              {status === 'processing' && (
+                                currentQuestionIndex < session.questions.length - 1 
+                                ? <Loader2 className="h-8 w-8 animate-spin" />
+                                : <Check className="h-8 w-8" />
+                              )}
                               <span className="sr-only">
                                 {status === 'idle' && 'Answer Now'}
-                                {status === 'evaluating' && 'Evaluating...'}
-                                {status === 'next_question' && 'Next Question...'}
+                                {status === 'processing' && 'Processing...'}
                               </span>
                           </Button>
                       )}
