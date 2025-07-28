@@ -222,40 +222,6 @@ export default function InterviewPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 bg-secondary/50">
       <div className="w-full max-w-6xl mx-auto space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* User Camera View */}
-          <Card className="shadow-lg">
-            <CardContent className="p-4">
-              <div className="aspect-video w-full bg-black rounded-lg overflow-hidden flex items-center justify-center relative">
-                <video ref={videoRef} autoPlay muted className="h-full w-full object-cover scale-x-[-1]"></video>
-                {!isCameraReady && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black bg-opacity-75">
-                    <Loader2 className="h-8 w-8 animate-spin mb-2" />
-                    <p>Starting Camera...</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Interviewer View - only shows when camera is ready */}
-          {isCameraReady && (
-            <Card className="shadow-lg flex flex-col items-center justify-center">
-              <CardContent className="p-4 flex flex-col items-center justify-center text-center flex-grow">
-                <Avatar className="h-40 w-40 mb-4 border-4 border-primary/20">
-                  <AvatarImage 
-                    src="/assets/HR.png" 
-                    data-ai-hint="professional woman" 
-                    onLoad={() => setIsAvatarLoaded(true)}
-                  />
-                  <AvatarFallback>...</AvatarFallback>
-                </Avatar>
-                {isAvatarLoaded && <p className="text-lg font-semibold">MGRaj - CHRO</p>}
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
         {/* This entire block will only render after the camera and avatar are ready */}
         {isCameraReady && isAvatarLoaded && (
           <>
@@ -294,7 +260,45 @@ export default function InterviewPage() {
             </div>
 
             <Progress value={progress} className="w-full" />
-            
+          </>
+        )}
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* User Camera View */}
+          <Card className="shadow-lg">
+            <CardContent className="p-4">
+              <div className="aspect-video w-full bg-black rounded-lg overflow-hidden flex items-center justify-center relative">
+                <video ref={videoRef} autoPlay muted className="h-full w-full object-cover scale-x-[-1]"></video>
+                {!isCameraReady && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black bg-opacity-75">
+                    <Loader2 className="h-8 w-8 animate-spin mb-2" />
+                    <p>Starting Camera...</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Interviewer View - only shows when camera is ready */}
+          {isCameraReady && (
+            <Card className="shadow-lg flex flex-col items-center justify-center">
+              <CardContent className="p-4 flex flex-col items-center justify-center text-center flex-grow">
+                <Avatar className="h-40 w-40 mb-4 border-4 border-primary/20">
+                  <AvatarImage 
+                    src="/assets/HR.png" 
+                    data-ai-hint="professional woman" 
+                    onLoad={() => setIsAvatarLoaded(true)}
+                  />
+                  <AvatarFallback>...</AvatarFallback>
+                </Avatar>
+                {isAvatarLoaded && <p className="text-lg font-semibold">MGRaj - CHRO</p>}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {isCameraReady && isAvatarLoaded && (
+          <>
             <Card>
               <CardContent className="p-4 flex items-center justify-between gap-4">
                 <div className="flex-grow">
@@ -335,5 +339,3 @@ export default function InterviewPage() {
     </div>
   );
 }
-
-    
