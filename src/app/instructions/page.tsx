@@ -20,7 +20,7 @@ export default function InstructionsPage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 bg-black">
+    <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 bg-black">
       <Card className="w-full max-w-lg shadow-2xl">
         <CardHeader>
           <CardTitle className="font-headline text-3xl text-center">Get Ready!</CardTitle>
@@ -57,9 +57,6 @@ export default function InstructionsPage() {
             </Button>
         </CardFooter>
       </Card>
-      <p className="text-center text-xs text-muted-foreground mt-4">
-        © {new Date().getFullYear()} Interview Ace. All Rights Reserved.
-      </p>
-    </main>
+    </div>
   );
 }

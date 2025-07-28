@@ -176,7 +176,7 @@ export default function ResultsPage() {
     : 0;
 
   return (
-    <main className="min-h-screen bg-black p-4 sm:p-8">
+    <div className="min-h-screen bg-black p-4 sm:p-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="flex items-center gap-2">
             <h1 className="text-3xl font-bold font-headline text-primary">Interview Report</h1>
@@ -246,6 +246,6 @@ export default function ResultsPage() {
             </Button>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

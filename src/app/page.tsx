@@ -123,7 +123,7 @@ export default function Home() {
       
       const friendlyMessage = errorMessage.includes('overloaded') || errorMessage.includes('503')
         ? "The AI service is currently busy. Please try again in a few moments."
-        : errorMessage;
+        : "Failed to generate questions. Please try again.";
 
       toast({
         variant: "destructive",
@@ -155,7 +155,6 @@ export default function Home() {
       );
     }
     return (
-      <>
       <Card className="w-full max-w-lg shadow-2xl">
         <CardHeader>
           <CardTitle className="font-headline text-3xl text-center">Prepare for your Interview</CardTitle>
@@ -239,17 +238,13 @@ export default function Home() {
           </CardFooter>
         </form>
       </Card>
-       <p className="text-center text-xs text-muted-foreground mt-4">
-        © {new Date().getFullYear()} Interview Ace. All Rights Reserved.
-      </p>
-      </>
     );
   }, [isMobile, isLoading, errors, fileName, handleSubmit, onSubmit, register, setValue, experienceLevels]);
 
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 bg-black">
+    <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 bg-black">
       {content}
-    </main>
+    </div>
   );
 }
