@@ -353,7 +353,7 @@ export default function InterviewPage() {
             </Card>
         </div>
 
-        {isCameraReady && isAvatarLoaded && (
+        {isCameraReady && isAvatarLoaded && currentQuestion && (
           <>
             <Card>
               <CardContent className="p-4 flex items-center justify-between gap-4">
