@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Logo } from "@/components/icons";
-import { Camera, Mic, Sun, Volume2 } from "lucide-react";
+import { Camera, Sun, Volume2 } from "lucide-react";
 
 export default function InstructionsPage() {
   const router = useRouter();
