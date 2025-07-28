@@ -222,108 +222,114 @@ export default function InterviewPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 bg-secondary/50">
       <div className="w-full max-w-6xl mx-auto space-y-4">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold font-headline text-primary">Interview in Progress</h2>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="font-semibold">{session.userDetails.name}</p>
-              <p className="text-sm text-muted-foreground">{session.userDetails.jobRole}</p>
-            </div>
-             <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm">
-                  <LogOut className="mr-2 h-4 w-4" /> End
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure you want to end the interview?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {session.results.length > 0 
-                      ? "You will be taken to the results page for the questions you have completed."
-                      : "Your progress will not be saved, and you will be returned to the home page."
-                    }
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleEndInterview}>
-                    End Interview
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-
-        <Progress value={progress} className="w-full" />
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* User Camera View */}
           <Card className="shadow-lg">
             <CardContent className="p-4">
-              <div className="aspect-video w-full bg-black rounded-lg overflow-hidden flex items-center justify-center">
+              <div className="aspect-video w-full bg-black rounded-lg overflow-hidden flex items-center justify-center relative">
                 <video ref={videoRef} autoPlay muted className="h-full w-full object-cover scale-x-[-1]"></video>
                 {!isCameraReady && (
-                  <div className="absolute inset-0 flex items-center justify-center text-white bg-black bg-opacity-50">
-                    <Loader2 className="h-8 w-8 animate-spin" />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black bg-opacity-75">
+                    <Loader2 className="h-8 w-8 animate-spin mb-2" />
+                    <p>Starting Camera...</p>
                   </div>
                 )}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg flex flex-col items-center justify-center">
-            <CardContent className="p-4 flex flex-col items-center justify-center text-center flex-grow">
-              <Avatar className="h-40 w-40 mb-4 border-4 border-primary/20">
-                <AvatarImage 
-                  src="/assets/HR.png" 
-                  data-ai-hint="professional woman" 
-                  onLoad={() => setIsAvatarLoaded(true)}
-                />
-                <AvatarFallback>...</AvatarFallback>
-              </Avatar>
-              {isAvatarLoaded && <p className="text-lg font-semibold">MGRaj - CHRO</p>}
-            </CardContent>
-          </Card>
+          {/* Interviewer View - only shows when camera is ready */}
+          {isCameraReady && (
+            <Card className="shadow-lg flex flex-col items-center justify-center">
+              <CardContent className="p-4 flex flex-col items-center justify-center text-center flex-grow">
+                <Avatar className="h-40 w-40 mb-4 border-4 border-primary/20">
+                  <AvatarImage 
+                    src="/assets/HR.png" 
+                    data-ai-hint="professional woman" 
+                    onLoad={() => setIsAvatarLoaded(true)}
+                  />
+                  <AvatarFallback>...</AvatarFallback>
+                </Avatar>
+                {isAvatarLoaded && <p className="text-lg font-semibold">MGRaj - CHRO</p>}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
-        {isAvatarLoaded && (
-          <Card>
-            <CardContent className="p-4 flex items-center justify-between gap-4">
-              <div className="flex-grow">
-                <p className="font-semibold text-sm mb-1">Question {currentQuestionIndex + 1}:</p>
-                <p className="text-lg">{currentQuestion.question}</p>
+        {/* This entire block will only render after the camera and avatar are ready */}
+        {isCameraReady && isAvatarLoaded && (
+          <>
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold font-headline text-primary">Interview in Progress</h2>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="font-semibold">{session.userDetails.name}</p>
+                  <p className="text-sm text-muted-foreground">{session.userDetails.jobRole}</p>
+                </div>
+                 <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm">
+                      <LogOut className="mr-2 h-4 w-4" /> End
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure you want to end the interview?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {session.results.length > 0 
+                          ? "You will be taken to the results page for the questions you have completed."
+                          : "Your progress will not be saved, and you will be returned to the home page."
+                        }
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleEndInterview}>
+                        End Interview
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
-              <div className="flex-shrink-0">
-                  {status === 'listening' ? (
-                      <Button onClick={finishRecording} size="icon" className="rounded-full w-16 h-16 bg-accent hover:bg-accent/90">
-                          <MicOff className="h-8 w-8" />
-                          <span className="sr-only">I'm Done</span>
-                      </Button>
-                  ) : (
-                      <Button onClick={startListening} size="icon" className="rounded-full w-16 h-16" disabled={status !== 'idle' || !isCameraReady}>
-                          {status === 'idle' && <Mic className="h-8 w-8" />}
-                          {status === 'evaluating' && <Loader2 className="h-8 w-8 animate-spin" />}
-                          {status === 'next_question' && <Bot className="h-8 w-8" />}
-                          <span className="sr-only">
-                             {status === 'idle' && 'Answer Now'}
-                             {status === 'evaluating' && 'Evaluating...'}
-                             {status === 'next_question' && 'Next Question...'}
-                          </span>
-                      </Button>
-                  )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
 
-        {isAvatarLoaded && (
-          <Card className="min-h-[120px]">
-            <CardContent className="p-4">
-              <h3 className="font-semibold text-sm mb-2">Your Answer:</h3>
-              <p className="text-muted-foreground text-sm italic">{transcript || "Your transcribed answer will appear here..."}</p>
-            </CardContent>
-          </Card>
+            <Progress value={progress} className="w-full" />
+            
+            <Card>
+              <CardContent className="p-4 flex items-center justify-between gap-4">
+                <div className="flex-grow">
+                  <p className="font-semibold text-sm mb-1">Question {currentQuestionIndex + 1}:</p>
+                  <p className="text-lg">{currentQuestion.question}</p>
+                </div>
+                <div className="flex-shrink-0">
+                    {status === 'listening' ? (
+                        <Button onClick={finishRecording} size="icon" className="rounded-full w-16 h-16 bg-accent hover:bg-accent/90">
+                            <MicOff className="h-8 w-8" />
+                            <span className="sr-only">I'm Done</span>
+                        </Button>
+                    ) : (
+                        <Button onClick={startListening} size="icon" className="rounded-full w-16 h-16" disabled={status !== 'idle'}>
+                            {status === 'idle' && <Mic className="h-8 w-8" />}
+                            {status === 'evaluating' && <Loader2 className="h-8 w-8 animate-spin" />}
+                            {status === 'next_question' && <Bot className="h-8 w-8" />}
+                            <span className="sr-only">
+                               {status === 'idle' && 'Answer Now'}
+                               {status === 'evaluating' && 'Evaluating...'}
+                               {status === 'next_question' && 'Next Question...'}
+                            </span>
+                        </Button>
+                    )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="min-h-[120px]">
+              <CardContent className="p-4">
+                <h3 className="font-semibold text-sm mb-2">Your Answer:</h3>
+                <p className="text-muted-foreground text-sm italic">{transcript || "Your transcribed answer will appear here..."}</p>
+              </CardContent>
+            </Card>
+          </>
         )}
       </div>
     </div>
