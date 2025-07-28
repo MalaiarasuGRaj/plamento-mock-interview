@@ -275,7 +275,7 @@ export default function InterviewPage() {
           <Card className="shadow-lg flex flex-col items-center justify-center">
             <CardContent className="p-4 flex flex-col items-center justify-center text-center flex-grow">
               <Avatar className="h-24 w-24 mb-4 border-4 border-primary/20">
-                <AvatarImage src="https://firebasestorage.googleapis.com/v0/b/interview-ace-dev/o/interviewer.png?alt=media&token=e93f6c59-24b2-4467-9b23-26154562c649" data-ai-hint="professional man" />
+                <AvatarImage src="/assets/HR.png" data-ai-hint="professional woman" />
                 <AvatarFallback>AI</AvatarFallback>
               </Avatar>
               <p className="text-lg font-semibold">Virtual Interviewer</p>
@@ -321,3 +321,5 @@ export default function InterviewPage() {
     </div>
   );
 }
+
+    
