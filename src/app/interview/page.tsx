@@ -357,13 +357,6 @@ export default function InterviewPage() {
                 </div>
               </CardContent>
             </Card>
-
-            <Card className="min-h-[120px]">
-              <CardContent className="p-4">
-                <h3 className="font-semibold text-sm mb-2">Your Answer:</h3>
-                <p className="text-muted-foreground text-sm italic">{transcript || "Your transcribed answer will appear here..."}</p>
-              </CardContent>
-            </Card>
           </>
         )}
       </div>
