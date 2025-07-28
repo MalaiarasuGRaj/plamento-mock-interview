@@ -211,7 +211,7 @@ export default function Home() {
             </div>
             <div className="space-y-2">
                <Label htmlFor="resume">Upload Resume (.pdf)</Label>
-                <Label htmlFor="resume" className={`flex w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-colors hover:border-primary hover:bg-muted ${errors.resume ? 'border-destructive' : ''}`}>
+                <Label htmlFor="resume" className={`flex w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-colors hover:border-ring hover:bg-muted ${errors.resume ? 'border-destructive' : ''}`}>
                   <UploadCloud className="h-8 w-8 text-muted-foreground" />
                   <p className="mt-2 text-sm text-muted-foreground">
                     {fileName || "Click to upload or drag and drop"}
