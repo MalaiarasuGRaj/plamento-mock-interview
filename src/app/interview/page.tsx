@@ -257,7 +257,8 @@ export default function InterviewPage() {
 
   const isTechnical = session.userDetails.interviewType === 'Technical';
   const interviewer = {
-    name: isTechnical ? "Tech Lead" : "HR Lead",
+    name: isTechnical ? "MGRaj" : "Shruthi",
+    title: isTechnical ? "Tech Lead" : "HR Lead",
     avatar: isTechnical 
         ? "/assets/Tech - Lead.png"
         : "/assets/HR - Lead.png",
@@ -327,7 +328,10 @@ export default function InterviewPage() {
                   <AvatarFallback>...</AvatarFallback>
                 </Avatar>
                 {isAvatarLoaded ? (
-                  <p className="text-lg font-semibold">{interviewer.name}</p>
+                  <>
+                    <p className="text-xl font-bold">{interviewer.name}</p>
+                    <p className="text-md text-muted-foreground">{interviewer.title}</p>
+                  </>
                 ) : (
                   <p className="text-lg font-semibold">Joining...</p>
                 )}
