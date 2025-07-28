@@ -278,7 +278,7 @@ export default function InterviewPage() {
                 <AvatarImage src="/assets/HR.png" data-ai-hint="professional woman" />
                 <AvatarFallback>AI</AvatarFallback>
               </Avatar>
-              <p className="text-lg font-semibold">Virtual Interviewer</p>
+              <p className="text-lg font-semibold">MGRaj - CHRO</p>
             </CardContent>
           </Card>
         </div>
