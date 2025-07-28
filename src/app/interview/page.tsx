@@ -11,7 +11,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Mic, MicOff, Bot, Loader2, Info } from "lucide-react";
+import { Mic, MicOff, Bot, Loader2, Info, LogOut } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 export default function InterviewPage() {
   const router = useRouter();
@@ -174,6 +185,16 @@ export default function InterviewPage() {
       }
     }, 3000);
   };
+  
+  const handleEndInterview = () => {
+    if (session && session.results.length > 0) {
+      router.push("/results");
+    } else {
+      localStorage.removeItem("interviewAceSession");
+      router.push("/");
+    }
+  };
+
 
   if (!session) {
     return (
@@ -203,9 +224,35 @@ export default function InterviewPage() {
       <div className="w-full max-w-6xl mx-auto space-y-4">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold font-headline text-primary">Interview in Progress</h2>
-          <div className="text-right">
-            <p className="font-semibold">{session.userDetails.name}</p>
-            <p className="text-sm text-muted-foreground">{session.userDetails.jobRole}</p>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="font-semibold">{session.userDetails.name}</p>
+              <p className="text-sm text-muted-foreground">{session.userDetails.jobRole}</p>
+            </div>
+             <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <LogOut className="mr-2 h-4 w-4" /> End
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure you want to end the interview?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {session.results.length > 0 
+                      ? "You will be taken to the results page for the questions you have completed."
+                      : "Your progress will not be saved, and you will be returned to the home page."
+                    }
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleEndInterview}>
+                    End Interview
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
 
