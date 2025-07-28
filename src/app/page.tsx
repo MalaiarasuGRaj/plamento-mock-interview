@@ -93,6 +93,7 @@ export default function Home() {
       const resumeText = await parsePdf(resumeFile);
       
       const questions = await generateInterviewQuestions({
+        userName: data.name,
         resumeText,
         jobRole: data.jobRole,
         experience: data.experience,

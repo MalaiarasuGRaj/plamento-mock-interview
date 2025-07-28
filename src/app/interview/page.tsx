@@ -32,6 +32,7 @@ export default function InterviewPage() {
   const [status, setStatus] = useState<'idle' | 'listening' | 'evaluating' | 'next_question'>('idle');
   const [transcript, setTranscript] = useState("");
   const [isCameraReady, setIsCameraReady] = useState(false);
+  const [isAvatarLoaded, setIsAvatarLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -195,7 +196,6 @@ export default function InterviewPage() {
     }
   };
 
-
   if (!session) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -275,48 +275,56 @@ export default function InterviewPage() {
           <Card className="shadow-lg flex flex-col items-center justify-center">
             <CardContent className="p-4 flex flex-col items-center justify-center text-center flex-grow">
               <Avatar className="h-40 w-40 mb-4 border-4 border-primary/20">
-                <AvatarImage src="/assets/HR.png" data-ai-hint="professional woman" />
-                <AvatarFallback>AI</AvatarFallback>
+                <AvatarImage 
+                  src="/assets/HR.png" 
+                  data-ai-hint="professional woman" 
+                  onLoad={() => setIsAvatarLoaded(true)}
+                />
+                <AvatarFallback>...</AvatarFallback>
               </Avatar>
-              <p className="text-lg font-semibold">MGRaj - CHRO</p>
+              {isAvatarLoaded && <p className="text-lg font-semibold">MGRaj - CHRO</p>}
             </CardContent>
           </Card>
         </div>
 
-         <Card>
-          <CardContent className="p-4 flex items-center justify-between gap-4">
-            <div className="flex-grow">
-              <p className="font-semibold text-sm mb-1">Question {currentQuestionIndex + 1}:</p>
-              <p className="text-lg">{currentQuestion.question}</p>
-            </div>
-            <div className="flex-shrink-0">
-                {status === 'listening' ? (
-                    <Button onClick={finishRecording} size="icon" className="rounded-full w-16 h-16 bg-accent hover:bg-accent/90">
-                        <MicOff className="h-8 w-8" />
-                        <span className="sr-only">I'm Done</span>
-                    </Button>
-                ) : (
-                    <Button onClick={startListening} size="icon" className="rounded-full w-16 h-16" disabled={status !== 'idle' || !isCameraReady}>
-                        {status === 'idle' && <Mic className="h-8 w-8" />}
-                        {status === 'evaluating' && <Loader2 className="h-8 w-8 animate-spin" />}
-                        {status === 'next_question' && <Bot className="h-8 w-8" />}
-                        <span className="sr-only">
-                           {status === 'idle' && 'Answer Now'}
-                           {status === 'evaluating' && 'Evaluating...'}
-                           {status === 'next_question' && 'Next Question...'}
-                        </span>
-                    </Button>
-                )}
-            </div>
-          </CardContent>
-        </Card>
+        {isAvatarLoaded && (
+          <Card>
+            <CardContent className="p-4 flex items-center justify-between gap-4">
+              <div className="flex-grow">
+                <p className="font-semibold text-sm mb-1">Question {currentQuestionIndex + 1}:</p>
+                <p className="text-lg">{currentQuestion.question}</p>
+              </div>
+              <div className="flex-shrink-0">
+                  {status === 'listening' ? (
+                      <Button onClick={finishRecording} size="icon" className="rounded-full w-16 h-16 bg-accent hover:bg-accent/90">
+                          <MicOff className="h-8 w-8" />
+                          <span className="sr-only">I'm Done</span>
+                      </Button>
+                  ) : (
+                      <Button onClick={startListening} size="icon" className="rounded-full w-16 h-16" disabled={status !== 'idle' || !isCameraReady}>
+                          {status === 'idle' && <Mic className="h-8 w-8" />}
+                          {status === 'evaluating' && <Loader2 className="h-8 w-8 animate-spin" />}
+                          {status === 'next_question' && <Bot className="h-8 w-8" />}
+                          <span className="sr-only">
+                             {status === 'idle' && 'Answer Now'}
+                             {status === 'evaluating' && 'Evaluating...'}
+                             {status === 'next_question' && 'Next Question...'}
+                          </span>
+                      </Button>
+                  )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        <Card className="min-h-[120px]">
-          <CardContent className="p-4">
-            <h3 className="font-semibold text-sm mb-2">Your Answer:</h3>
-            <p className="text-muted-foreground text-sm italic">{transcript || "Your transcribed answer will appear here..."}</p>
-          </CardContent>
-        </Card>
+        {isAvatarLoaded && (
+          <Card className="min-h-[120px]">
+            <CardContent className="p-4">
+              <h3 className="font-semibold text-sm mb-2">Your Answer:</h3>
+              <p className="text-muted-foreground text-sm italic">{transcript || "Your transcribed answer will appear here..."}</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

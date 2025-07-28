@@ -12,6 +12,8 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateInterviewQuestionsInputSchema = z.object({
+  // Add userName to the input schema
+  userName: z.string().describe('The name of the user.'),
   resumeText: z
     .string()
     .describe('The text content of the user resume.'),
@@ -40,7 +42,7 @@ const generateInterviewQuestionsPrompt = ai.definePrompt({
   name: 'generateInterviewQuestionsPrompt',
   input: {schema: GenerateInterviewQuestionsInputSchema},
   output: {schema: GenerateInterviewQuestionsOutputSchema},
-  prompt: `You are a smart virtual interviewer. Generate 8-10 questions tailored to the following:\n\nResume:\n"""\n{{{resumeText}}}\n"""\n\nJob Role: {{{jobRole}}}\nExperience: {{{experience}}}\nInterview Type: {{{interviewType}}} (HR or Technical)\n\nReturn JSON list like:\n[
+  prompt: `You are a smart virtual interviewer. Generate 7-9 questions tailored to the following:\n\nResume:\n"""\n{{{resumeText}}}\n"""\n\nJob Role: {{{jobRole}}}\nExperience: {{{experience}}}\nInterview Type: {{{interviewType}}} (HR or Technical)\n\nReturn JSON list like:\n[
   {
     "question": "Tell me about a time you overcame a challenge.",
     "category": "behavioral",
@@ -57,8 +59,23 @@ const generateInterviewQuestionsFlow = ai.defineFlow(
     inputSchema: GenerateInterviewQuestionsInputSchema,
     outputSchema: GenerateInterviewQuestionsOutputSchema,
   },
-  async input => {
+  async (input) => {
+    // Generate the main questions
     const {output} = await generateInterviewQuestionsPrompt(input);
-    return output!;
+
+    if (!output) {
+      // Handle the case where the model returns no questions
+      return [];
+    }
+    
+    // Create the static first question
+    const firstQuestion: GenerateInterviewQuestionsOutput[0] = {
+        question: `Good Morning, Welcome ${input.userName}, please introduce yourself.`,
+        category: "Introduction",
+        expected_keywords: ["introduction", "experience", "background", "summary"]
+    };
+
+    // Prepend the static question to the generated list
+    return [firstQuestion, ...output];
   }
 );
