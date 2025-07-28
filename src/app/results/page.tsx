@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Download, Home } from "lucide-react";
 import { Logo } from "@/components/icons";
+import jsPDF from "jspdf";
 
 export default function ResultsPage() {
   const router = useRouter();
@@ -68,16 +69,87 @@ export default function ResultsPage() {
   }, [router, toast]);
   
   const handleDownloadReport = () => {
-    if (!report) return;
-    const blob = new Blob([report], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Interview_Report_${session?.userDetails.name.replace(" ", "_")}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (!report || !session) return;
+  
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
+    const contentWidth = pageWidth - margin * 2;
+  
+    // Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("Interview Performance Report", pageWidth / 2, 20, { align: "center" });
+  
+    // User Details
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Candidate: ${session.userDetails.name}`, margin, 35);
+    doc.text(`Job Role: ${session.userDetails.jobRole}`, margin, 42);
+    doc.text(`Experience: ${session.userDetails.experience}`, margin, 49);
+    
+    // Summary Report
+    doc.setFont("helvetica", "bold");
+    doc.text("Summary Report", margin, 65);
+    doc.setLineWidth(0.5);
+    doc.line(margin, 66, pageWidth - margin, 66);
+    
+    doc.setFont("helvetica", "normal");
+    const summaryLines = doc.splitTextToSize(report, contentWidth);
+    doc.text(summaryLines, margin, 72);
+
+    let yPosition = 72 + (summaryLines.length * 7) + 10;
+
+    // Detailed Breakdown
+    doc.setFont("helvetica", "bold");
+    doc.text("Detailed Breakdown", margin, yPosition);
+    doc.setLineWidth(0.5);
+    yPosition += 1;
+    doc.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 8;
+
+    session.results.forEach((result, index) => {
+       if (yPosition > 270) {
+        doc.addPage();
+        yPosition = 20;
+       }
+
+      // Question
+      doc.setFont("helvetica", "bold");
+      const questionLines = doc.splitTextToSize(`Question ${index + 1}: ${result.question.question}`, contentWidth);
+      doc.text(questionLines, margin, yPosition);
+      yPosition += (questionLines.length * 5) + 2;
+
+      // User Answer
+      doc.setFont("helvetica", "italic");
+      const answerLines = doc.splitTextToSize(`Your Answer: "${result.userAnswer}"`, contentWidth);
+      doc.text(answerLines, margin, yPosition);
+      yPosition += (answerLines.length * 5) + 4;
+      
+      // Feedback
+      doc.setFont("helvetica", "bold");
+      doc.text("Feedback:", margin, yPosition);
+      yPosition += 5;
+      doc.setFont("helvetica", "normal");
+      const feedbackLines = doc.splitTextToSize(result.evaluation.feedback, contentWidth);
+      doc.text(feedbackLines, margin, yPosition);
+      yPosition += (feedbackLines.length * 5) + 4;
+
+      // Scores
+      const scores = `Relevance: ${result.evaluation.relevance_score.toFixed(1)} | Fluency: ${result.evaluation.fluency_score.toFixed(1)} | Confidence: ${result.evaluation.confidence_score.toFixed(1)} | Total: ${result.evaluation.total_score.toFixed(1)}`;
+      doc.setFontSize(10);
+      doc.text(scores, margin, yPosition);
+      yPosition += 10;
+       doc.setFontSize(12);
+
+      if (index < session.results.length -1) {
+        doc.setLineWidth(0.2);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 8;
+      }
+    });
+
+    doc.save(`Interview_Report_${session.userDetails.name.replace(" ", "_")}.pdf`);
   };
   
   const handleNewInterview = () => {
@@ -129,7 +201,7 @@ export default function ResultsPage() {
                   <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                </div>
             )}
-          </CardContent>
+          </Create>
         </Card>
 
         <Card className="shadow-xl">
