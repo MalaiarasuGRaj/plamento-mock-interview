@@ -54,7 +54,8 @@ export default function InterviewPage() {
 
       recognition.onresult = (event) => {
         let interimTranscript = "";
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
+        finalTranscriptRef.current = "";
+        for (let i = 0; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
             finalTranscriptRef.current += event.results[i][0].transcript + ' ';
           } else {
@@ -75,10 +76,7 @@ export default function InterviewPage() {
       };
       
       recognition.onend = () => {
-        // Only change status if we are in 'listening' state.
-        // This prevents state changes on intentional stops.
         if (status === 'listening') {
-          // If it ends unexpectedly, just reset to idle. The user can click again.
           setStatus('idle');
         }
       };
@@ -110,10 +108,11 @@ export default function InterviewPage() {
             mediaStreamRef.current.getTracks().forEach(track => track.stop());
         }
         if (recognitionRef.current) {
+            recognitionRef.current.onend = null;
             recognitionRef.current.stop();
         }
     }
-  }, [router, status]); // Added status to dependencies
+  }, []);
 
   const startListening = () => {
     if (recognitionRef.current && status === 'idle') {
@@ -127,11 +126,9 @@ export default function InterviewPage() {
   const stopListeningAndEvaluate = async () => {
     if (recognitionRef.current && status === 'listening') {
       recognitionRef.current.stop();
-      // Set status to evaluating immediately to prevent onend from firing and resetting to idle
       setStatus('evaluating'); 
       
-      const answerToEvaluate = finalTranscriptRef.current.trim();
-      setTranscript(answerToEvaluate);
+      const answerToEvaluate = transcript.trim();
 
       if (!answerToEvaluate) {
         toast({
@@ -183,6 +180,8 @@ export default function InterviewPage() {
     setTimeout(() => {
       if (currentQuestionIndex < session!.questions.length - 1) {
         setCurrentQuestionIndex(prev => prev + 1);
+        setTranscript("");
+        finalTranscriptRef.current = "";
         setStatus('idle');
       } else {
         router.push("/results");
