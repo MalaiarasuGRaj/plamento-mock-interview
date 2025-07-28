@@ -96,7 +96,7 @@ export default function InterviewPage() {
             // and we rely on the updated session for the final check.
             setSession(prev => prev ? ({...prev, results: [...prev.results, newResult]}) : null);
 
-            if (questionIndex === currentSession.questions.length - 1) {
+            if (questionIndex >= currentSession.questions.length - 1) {
               router.push("/results");
             }
         }
@@ -107,8 +107,20 @@ export default function InterviewPage() {
     } catch (e) {
       console.error("Background evaluation failed for question " + questionIndex, e);
       const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during evaluation.";
-      toast({ variant: "destructive", title: `Evaluation Error Q${questionIndex + 1}`, description: errorMessage });
-      if (questionIndex === sessionRef.current!.questions.length - 1) {
+       toast({ 
+        variant: "destructive", 
+        title: `Evaluation Error Q${questionIndex + 1}`, 
+        description: errorMessage.includes('429') 
+            ? "You have exceeded the API rate limit. Please wait a moment before trying again." 
+            : errorMessage 
+      });
+
+      // Reset state to allow user to retry
+      setStatus('idle');
+      
+      if (questionIndex >= sessionRef.current!.questions.length - 1) {
+        // Still navigate if it was the last question, even if evaluation failed.
+        // The results page will show that not all questions were evaluated.
         router.push("/results");
       }
     }
@@ -120,12 +132,20 @@ export default function InterviewPage() {
         setCurrentQuestionIndex(prev => prev + 1);
         setTimeLeft(QUESTION_TIMER_SECONDS);
         setStatus('idle');
+    } else if (currentSession && currentQuestionIndex >= currentSession.questions.length - 1) {
+        // This is the last question. The router push will be handled by the background evaluation.
+        setStatus('processing'); 
     } else {
-        setStatus('processing'); // Final processing state, will navigate on last evaluation.
+        setStatus('processing');
     }
   }, [currentQuestionIndex]);
 
   const handleStop = useCallback(() => {
+    if (mediaRecorderRef.current?.state === "recording") {
+        mediaRecorderRef.current.stop();
+    }
+    setStatus('processing');
+    
     if (audioChunksRef.current.length > 0) {
       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm;codecs=opus' });
       evaluateInBackground(audioBlob, currentQuestionIndex);
@@ -178,9 +198,7 @@ export default function InterviewPage() {
         setTimeLeft(prevTime => {
           if (prevTime <= 1) {
             clearInterval(timerIntervalRef.current!);
-            if (mediaRecorderRef.current?.state === 'recording') {
-              mediaRecorderRef.current.stop();
-            }
+            handleStop();
             return 0;
           }
           return prevTime - 1;
@@ -192,34 +210,35 @@ export default function InterviewPage() {
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
-  }, [status]);
+  }, [status, handleStop]);
   
   const startListening = () => {
     if (mediaStreamRef.current && status === 'idle' && isCameraReady) {
       setTimeLeft(QUESTION_TIMER_SECONDS);
       audioChunksRef.current = [];
       try {
-        // Let browser choose the best mimeType
         mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current);
         mediaRecorderRef.current.ondataavailable = (event) => {
           if (event.data.size > 0) {
             audioChunksRef.current.push(event.data);
           }
         };
-        mediaRecorderRef.current.onstop = handleStop;
+        mediaRecorderRef.current.onstop = () => {
+           // The handleStop function is now called when the timer runs out or user clicks the button
+        };
         mediaRecorderRef.current.start();
         setStatus('listening');
       } catch (err) {
         console.error("MediaRecorder error:", err);
         setError("Could not start recording. Please check your browser compatibility.");
+        toast({ variant: "destructive", title: "Recording Error", description: "Could not start recording." });
       }
     }
   };
   
   const finishRecording = () => {
     if (mediaRecorderRef.current && status === 'listening') {
-       setStatus('processing');
-       mediaRecorderRef.current.stop();
+       handleStop();
     }
   };
   
