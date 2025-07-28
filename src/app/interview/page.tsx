@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Mic, MicOff, Bot, Loader2, Info, LogOut, Timer, Check } from "lucide-react";
+import { Mic, MicOff, Bot, Loader2, Info, LogOut, Timer, Check, Send } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,7 +32,7 @@ export default function InterviewPage() {
   const { toast } = useToast();
   const [session, setSession] = useState<InterviewSession | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [status, setStatus] = useState<'idle' | 'listening' | 'processing'>('idle');
+  const [status, setStatus] = useState<'idle' | 'listening' | 'processing' | 'finished'>('idle');
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isAvatarLoaded, setIsAvatarLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +58,10 @@ export default function InterviewPage() {
 
         const sttResult = await speechToText(base64Audio);
         if (sttResult.error || !sttResult.transcript) {
-          throw new Error(sttResult.error || "Speech-to-text failed.");
+           const errorMessage = sttResult.error || "Speech-to-text failed.";
+           throw new Error(errorMessage.includes('429') 
+            ? "You have exceeded the API rate limit. Please wait a moment before trying again." 
+            : errorMessage);
         }
         const answerTranscript = sttResult.transcript;
 
@@ -92,12 +95,13 @@ export default function InterviewPage() {
             sessionRef.current = updatedSession;
             localStorage.setItem("interviewAceSession", JSON.stringify(updatedSession));
             
-            // This needs to be done via a ref as setSession is not immediate
-            // and we rely on the updated session for the final check.
             setSession(prev => prev ? ({...prev, results: [...prev.results, newResult]}) : null);
 
             if (questionIndex >= currentSession.questions.length - 1) {
+              setStatus('finished');
               router.push("/results");
+            } else {
+              moveToNextQuestion();
             }
         }
       };
@@ -110,19 +114,10 @@ export default function InterviewPage() {
        toast({ 
         variant: "destructive", 
         title: `Evaluation Error Q${questionIndex + 1}`, 
-        description: errorMessage.includes('429') 
-            ? "You have exceeded the API rate limit. Please wait a moment before trying again." 
-            : errorMessage 
+        description: errorMessage
       });
-
-      // Reset state to allow user to retry
-      setStatus('idle');
       
-      if (questionIndex >= sessionRef.current!.questions.length - 1) {
-        // Still navigate if it was the last question, even if evaluation failed.
-        // The results page will show that not all questions were evaluated.
-        router.push("/results");
-      }
+      setStatus('idle');
     }
   };
   
@@ -132,11 +127,6 @@ export default function InterviewPage() {
         setCurrentQuestionIndex(prev => prev + 1);
         setTimeLeft(QUESTION_TIMER_SECONDS);
         setStatus('idle');
-    } else if (currentSession && currentQuestionIndex >= currentSession.questions.length - 1) {
-        // This is the last question. The router push will be handled by the background evaluation.
-        setStatus('processing'); 
-    } else {
-        setStatus('processing');
     }
   }, [currentQuestionIndex]);
 
@@ -150,9 +140,17 @@ export default function InterviewPage() {
       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm;codecs=opus' });
       evaluateInBackground(audioBlob, currentQuestionIndex);
       audioChunksRef.current = [];
+    } else {
+      // Handle case with no audio recorded
+       const currentSession = sessionRef.current;
+        if (currentSession && currentQuestionIndex >= currentSession.questions.length - 1) {
+          setStatus('finished');
+          router.push("/results");
+        } else {
+           moveToNextQuestion();
+        }
     }
-    moveToNextQuestion();
-  }, [currentQuestionIndex, moveToNextQuestion]);
+  }, [currentQuestionIndex, moveToNextQuestion, router]);
 
   useEffect(() => {
     const storedSession = localStorage.getItem("interviewAceSession");
@@ -222,9 +220,6 @@ export default function InterviewPage() {
           if (event.data.size > 0) {
             audioChunksRef.current.push(event.data);
           }
-        };
-        mediaRecorderRef.current.onstop = () => {
-           // The handleStop function is now called when the timer runs out or user clicks the button
         };
         mediaRecorderRef.current.start();
         setStatus('listening');
@@ -382,14 +377,12 @@ export default function InterviewPage() {
                       ) : (
                           <Button onClick={startListening} size="icon" className="rounded-full w-16 h-16" disabled={status !== 'idle'}>
                               {status === 'idle' && <Mic className="h-8 w-8" />}
-                              {status === 'processing' && (
-                                sessionRef.current && currentQuestionIndex < sessionRef.current.questions.length - 1 
-                                ? <Loader2 className="h-8 w-8 animate-spin" />
-                                : <Check className="h-8 w-8" />
-                              )}
+                              {status === 'processing' && <Loader2 className="h-8 w-8 animate-spin" />}
+                              {status === 'finished' && <Send className="h-8 w-8" />}
                               <span className="sr-only">
                                 {status === 'idle' && 'Answer Now'}
                                 {status === 'processing' && 'Processing...'}
+                                {status === 'finished' && 'Finishing up...'}
                               </span>
                           </Button>
                       )}
