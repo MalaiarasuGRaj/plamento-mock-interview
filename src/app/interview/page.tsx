@@ -275,7 +275,7 @@ export default function InterviewPage() {
           <Card className="shadow-lg flex flex-col items-center justify-center">
             <CardContent className="p-4 flex flex-col items-center justify-center text-center flex-grow">
               <Avatar className="h-24 w-24 mb-4 border-4 border-primary/20">
-                <AvatarImage src="https://placehold.co/128x128.png" data-ai-hint="professional avatar" />
+                <AvatarImage src="https://firebasestorage.googleapis.com/v0/b/interview-ace-dev/o/interviewer.jpg?alt=media&token=1c6a2e4b-6142-4217-91a5-927361a350a4" data-ai-hint="professional avatar" />
                 <AvatarFallback>AI</AvatarFallback>
               </Avatar>
               <p className="text-lg font-semibold">Virtual Interviewer</p>
