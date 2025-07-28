@@ -27,8 +27,9 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import type { InterviewSession } from "@/lib/types";
-import { Loader2, UploadCloud } from "lucide-react";
+import { Loader2, UploadCloud, Laptop } from "lucide-react";
 import { Logo } from "@/components/icons";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.mjs`;
 
@@ -47,6 +48,7 @@ export default function Home() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [fileName, setFileName] = useState("");
+  const isMobile = useIsMobile();
 
   const {
     register,
@@ -129,6 +131,20 @@ export default function Home() {
       setIsLoading(false);
     }
   };
+  
+  if (isMobile) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 bg-gradient-to-br from-background to-secondary">
+        <div className="text-center">
+            <Laptop className="mx-auto h-24 w-24 text-primary mb-4" />
+            <h1 className="text-2xl font-bold font-headline text-primary mb-2">Desktop Recommended</h1>
+            <p className="max-w-md text-muted-foreground">
+                For the best experience, please use a desktop or laptop computer. The full interface is not optimized for mobile devices.
+            </p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 bg-gradient-to-br from-background to-secondary">
