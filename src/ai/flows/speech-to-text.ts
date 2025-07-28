@@ -4,29 +4,22 @@
  * @fileOverview A flow to convert speech to text.
  *
  * - speechToText - A function that converts audio data to text.
- * - SpeechToTextInput - The input type for the speechToText function.
- * - SpeechToTextOutput - The return type for the speechToText function.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-export const SpeechToTextInputSchema = z.string().describe(
+const SpeechToTextInputSchema = z.string().describe(
   "A base64 encoded audio file as a data URI that must include a MIME type. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
 );
-export type SpeechToTextInput = z.infer<typeof SpeechToTextInputSchema>;
+type SpeechToTextInput = z.infer<typeof SpeechToTextInputSchema>;
 
-export const SpeechToTextOutputSchema = z.object({
+const SpeechToTextOutputSchema = z.object({
   transcript: z.string().optional().describe('The transcribed text.'),
   error: z.string().optional().describe('An error message if transcription fails.'),
 });
 export type SpeechToTextOutput = z.infer<typeof SpeechToTextOutputSchema>;
 
-export async function speechToText(
-  input: SpeechToTextInput
-): Promise<SpeechToTextOutput> {
-  return speechToTextFlow(input);
-}
 
 const speechToTextFlow = ai.defineFlow(
   {
@@ -53,3 +46,9 @@ const speechToTextFlow = ai.defineFlow(
     }
   }
 );
+
+export async function speechToText(
+  input: SpeechToTextInput
+): Promise<SpeechToTextOutput> {
+  return speechToTextFlow(input);
+}
