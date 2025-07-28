@@ -115,12 +115,13 @@ export default function InterviewPage() {
   };
   
   const moveToNextQuestion = useCallback(() => {
-    if (sessionRef.current && currentQuestionIndex < sessionRef.current.questions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
-      setTimeLeft(QUESTION_TIMER_SECONDS);
-      setStatus('idle');
+    const currentSession = sessionRef.current;
+    if (currentSession && currentQuestionIndex < currentSession.questions.length - 1) {
+        setCurrentQuestionIndex(prev => prev + 1);
+        setTimeLeft(QUESTION_TIMER_SECONDS);
+        setStatus('idle');
     } else {
-      setStatus('processing'); // Final processing state
+        setStatus('processing'); // Final processing state, will navigate on last evaluation.
     }
   }, [currentQuestionIndex]);
 
@@ -258,8 +259,8 @@ export default function InterviewPage() {
   const interviewer = {
     name: isTechnical ? "Tech Lead" : "HR Lead",
     avatar: isTechnical 
-        ? "https://placehold.co/200x200.png" 
-        : "https://placehold.co/200x200.png",
+        ? "https://placehold.co/200x200/4F46E5/FFFFFF.png"
+        : "https://placehold.co/200x200/F472B6/FFFFFF.png",
     aiHint: isTechnical ? "professional man" : "professional woman",
   };
 
@@ -381,5 +382,3 @@ export default function InterviewPage() {
     </div>
   );
 }
-
-    
