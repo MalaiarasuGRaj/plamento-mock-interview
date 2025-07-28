@@ -35,7 +35,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/$
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   jobRole: z.string().min(2, "Job role is required."),
-  experience: z.string().min(1, "Experience level is required."),
+  experience: z.string({ required_error: "Experience level is required." }),
   interviewType: z.enum(["Technical", "HR"]),
   resume: z.any().refine((files) => files?.length === 1, "Resume is required."),
 });
@@ -157,9 +157,21 @@ export default function Home() {
                 {errors.jobRole && <p className="text-sm text-destructive">{errors.jobRole.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="experience">Experience Level</Label>
-                <Input id="experience" {...register("experience")} placeholder="e.g. 1-3 years" disabled={isLoading} />
-                {errors.experience && <p className="text-sm text-destructive">{errors.experience.message}</p>}
+                 <Label htmlFor="experience">Experience Level</Label>
+                 <Select
+                    onValueChange={(value) => setValue("experience", value)}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select experience level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0-1 years">0-1 years</SelectItem>
+                      <SelectItem value="2-5 years">2-5 years</SelectItem>
+                      <SelectItem value="5+ years">5+ years</SelectItem>
+                    </SelectContent>
+                  </Select>
+                 {errors.experience && <p className="text-sm text-destructive">{errors.experience.message}</p>}
               </div>
             </div>
             <div className="space-y-2">
