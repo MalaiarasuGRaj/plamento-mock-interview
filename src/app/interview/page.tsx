@@ -259,9 +259,8 @@ export default function InterviewPage() {
   const interviewer = {
     name: isTechnical ? "Tech Lead" : "HR Lead",
     avatar: isTechnical 
-        ? "https://placehold.co/200x200/4F46E5/FFFFFF.png"
-        : "https://placehold.co/200x200/EC4899/FFFFFF.png",
-    aiHint: isTechnical ? "professional man" : "professional woman",
+        ? "/assets/Tech - Lead.png"
+        : "/assets/HR - Lead.png",
   };
 
 
@@ -323,7 +322,6 @@ export default function InterviewPage() {
                 <Avatar className="h-40 w-40 mb-4 border-4 border-primary/20">
                   <AvatarImage 
                     src={interviewer.avatar}
-                    data-ai-hint={interviewer.aiHint}
                     onLoad={() => setIsAvatarLoaded(true)}
                   />
                   <AvatarFallback>...</AvatarFallback>
