@@ -31,39 +31,64 @@ export default function ResultsPage() {
     setSession(parsedSession);
 
     const generateReport = async () => {
-      if (!parsedSession.results || parsedSession.results.length === 0) {
-        setReport("No interview data found to generate a report.");
-        setIsLoading(false);
-        return;
-      }
-      try {
-        const reportData = await generatePerformanceReport({
-          userName: parsedSession.userDetails.name,
-          jobRole: parsedSession.userDetails.jobRole,
-          experience: parsedSession.userDetails.experience,
-          interviewSummary: parsedSession.results.map(r => ({
-            question: r.question.question,
-            userAnswer: r.userAnswer,
-            relevanceScore: r.evaluation.relevance_score,
-            fluencyScore: r.evaluation.fluency_score,
-            confidenceScore: r.evaluation.confidence_score,
-            totalScore: r.evaluation.total_score,
-            feedback: r.evaluation.feedback,
-          })),
-        });
-        setReport(reportData);
-      } catch (e) {
-        console.error("Report generation failed", e);
-        toast({
-          variant: "destructive",
-          title: "Report Error",
-          description: "Could not generate the final report.",
-        });
-        setReport("Failed to generate report.");
-      } finally {
-        setIsLoading(false);
+      // Ensure we don't re-generate the report if it's already done.
+      if (parsedSession.results.length < parsedSession.questions.length) {
+          // Still waiting for some evaluations to finish
+          const interval = setInterval(() => {
+              const latestSession = localStorage.getItem("interviewAceSession");
+              if (latestSession) {
+                  const latestParsed = JSON.parse(latestSession);
+                  setSession(latestParsed);
+                  if (latestParsed.results.length === latestParsed.questions.length) {
+                      clearInterval(interval);
+                      // Now call the AI
+                      callGeneratePerformanceReport(latestParsed);
+                  }
+              }
+          }, 2000); // Check every 2 seconds
+
+          return () => clearInterval(interval);
+      } else {
+        // All results are in, generate report
+        callGeneratePerformanceReport(parsedSession);
       }
     };
+
+    const callGeneratePerformanceReport = async (finalSession: InterviewSession) => {
+        if (!finalSession.results || finalSession.results.length === 0) {
+            setReport("No interview data found to generate a report.");
+            setIsLoading(false);
+            return;
+        }
+        try {
+            const reportData = await generatePerformanceReport({
+            userName: finalSession.userDetails.name,
+            jobRole: finalSession.userDetails.jobRole,
+            experience: finalSession.userDetails.experience,
+            interviewSummary: finalSession.results.map(r => ({
+                question: r.question.question,
+                userAnswer: r.userAnswer,
+                relevanceScore: r.evaluation.relevance_score,
+                fluencyScore: r.evaluation.fluency_score,
+                confidenceScore: r.evaluation.confidence_score,
+                totalScore: r.evaluation.total_score,
+                feedback: r.evaluation.feedback,
+            })),
+            });
+            setReport(reportData);
+        } catch (e) {
+            console.error("Report generation failed", e);
+            toast({
+            variant: "destructive",
+            title: "Report Error",
+            description: "Could not generate the final report.",
+            });
+            setReport("Failed to generate report.");
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
     generateReport();
   }, [router, toast]);
   

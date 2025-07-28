@@ -51,6 +51,12 @@ export default function InterviewPage() {
   
   const evaluateInBackground = async (audioBlob: Blob, questionIndex: number) => {
     try {
+      const isLastQuestion = questionIndex >= (sessionRef.current?.questions.length ?? 0) - 1;
+       if (isLastQuestion) {
+        setStatus('finished');
+        router.push('/results');
+      }
+
       const reader = new FileReader();
       reader.readAsDataURL(audioBlob);
       reader.onloadend = async () => {
@@ -87,7 +93,6 @@ export default function InterviewPage() {
             feedback: evaluation.feedback ?? "No feedback provided."
           }
         };
-
         
         if (currentSession) {
             const updatedResults = [...currentSession.results, newResult];
@@ -97,10 +102,7 @@ export default function InterviewPage() {
             
             setSession(prev => prev ? ({...prev, results: [...prev.results, newResult]}) : null);
 
-            if (questionIndex >= currentSession.questions.length - 1) {
-              setStatus('finished');
-              router.push("/results");
-            } else {
+            if (!isLastQuestion) {
               moveToNextQuestion();
             }
         }
@@ -150,7 +152,7 @@ export default function InterviewPage() {
            moveToNextQuestion();
         }
     }
-  }, [currentQuestionIndex, moveToNextQuestion, router]);
+  }, [currentQuestionIndex, evaluateInBackground, moveToNextQuestion, router]);
 
   useEffect(() => {
     const storedSession = localStorage.getItem("interviewAceSession");
@@ -159,6 +161,12 @@ export default function InterviewPage() {
       return;
     }
     const parsedSession: InterviewSession = JSON.parse(storedSession);
+    
+    if (parsedSession.results.length === parsedSession.questions.length && parsedSession.questions.length > 0) {
+        router.push('/results');
+        return;
+    }
+
     setSession(parsedSession);
 
     const getMediaPermissions = async () => {
