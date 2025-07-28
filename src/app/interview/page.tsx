@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { evaluateUserAnswer } from "@/ai/flows/evaluate-user-answer";
-import type { InterviewSession, InterviewQuestion, InterviewResult } from "@/lib/types";
+import type { InterviewSession, InterviewResult } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -35,6 +35,57 @@ export default function InterviewPage() {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const finalTranscriptRef = useRef("");
+  const listeningRef = useRef(false);
+
+  const setupSpeechRecognition = useCallback(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setError("Speech Recognition is not supported by your browser. Please use Google Chrome.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onresult = (event) => {
+      let interimTranscript = "";
+      let finalTranscript = "";
+      for (let i = 0; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript + ' ';
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+      finalTranscriptRef.current = finalTranscript;
+      setTranscript(finalTranscript + interimTranscript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error", event.error);
+       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          setError("Microphone access was denied. Please enable it in your browser settings to continue.");
+      } else if (event.error === 'network') {
+          setError("Network error with speech recognition. Please check your connection.");
+      } else {
+          setError(`Speech recognition failed: ${event.error}. Please check your microphone and try again.`);
+      }
+      setStatus('idle');
+      listeningRef.current = false;
+    };
+    
+    recognition.onend = () => {
+      if (listeningRef.current) {
+        // If it stops unexpectedly while it should be listening, restart it.
+        recognition.start();
+      } else {
+         setStatus('idle');
+      }
+    };
+    
+    recognitionRef.current = recognition;
+  }, []);
 
   useEffect(() => {
     const storedSession = localStorage.getItem("interviewAceSession");
@@ -45,48 +96,8 @@ export default function InterviewPage() {
     const parsedSession: InterviewSession = JSON.parse(storedSession);
     setSession(parsedSession);
     
-    // Setup Speech Recognition
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
+    setupSpeechRecognition();
 
-      recognition.onresult = (event) => {
-        let interimTranscript = "";
-        finalTranscriptRef.current = "";
-        for (let i = 0; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscriptRef.current += event.results[i][0].transcript + ' ';
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
-        }
-        setTranscript(finalTranscriptRef.current + interimTranscript);
-      };
-
-      recognition.onerror = (event) => {
-        console.error("Speech recognition error", event.error);
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            setError("Microphone access was denied. Please enable it in your browser settings to continue.");
-        } else {
-            setError(`Speech recognition failed: ${event.error}. Please check your microphone and try again.`);
-        }
-        setStatus('idle');
-      };
-      
-      recognition.onend = () => {
-        if (status === 'listening') {
-          setStatus('idle');
-        }
-      };
-
-      recognitionRef.current = recognition;
-    } else {
-      setError("Speech Recognition is not supported by your browser. Please use Google Chrome.");
-    }
-
-    // Setup Camera and Microphone
     const getMediaPermissions = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -98,26 +109,31 @@ export default function InterviewPage() {
         } catch (err) {
             console.error("Media access error:", err);
             setError("Camera and microphone access is required. Please enable it in your browser settings.");
+            setIsCameraReady(false);
         }
     };
     
     getMediaPermissions();
 
     return () => {
+        listeningRef.current = false;
+        if (recognitionRef.current) {
+            recognitionRef.current.onend = null;
+            recognitionRef.current.onerror = null;
+            recognitionRef.current.onresult = null;
+            recognitionRef.current.stop();
+        }
         if (mediaStreamRef.current) {
             mediaStreamRef.current.getTracks().forEach(track => track.stop());
         }
-        if (recognitionRef.current) {
-            recognitionRef.current.onend = null;
-            recognitionRef.current.stop();
-        }
     }
-  }, []);
+  }, [router, setupSpeechRecognition]);
 
   const startListening = () => {
-    if (recognitionRef.current && status === 'idle') {
+    if (recognitionRef.current && status === 'idle' && isCameraReady) {
       finalTranscriptRef.current = "";
       setTranscript("");
+      listeningRef.current = true;
       recognitionRef.current.start();
       setStatus('listening');
     }
@@ -125,10 +141,11 @@ export default function InterviewPage() {
 
   const stopListeningAndEvaluate = async () => {
     if (recognitionRef.current && status === 'listening') {
+      listeningRef.current = false;
       recognitionRef.current.stop();
       setStatus('evaluating'); 
       
-      const answerToEvaluate = transcript.trim();
+      const answerToEvaluate = finalTranscriptRef.current.trim() || transcript.trim();
 
       if (!answerToEvaluate) {
         toast({
@@ -161,9 +178,12 @@ export default function InterviewPage() {
           }
         };
 
-        const updatedSession = { ...session!, results: [...session!.results, newResult] };
-        setSession(updatedSession);
-        localStorage.setItem("interviewAceSession", JSON.stringify(updatedSession));
+        setSession(prev => {
+          if (!prev) return null;
+          const updatedSession = { ...prev, results: [...prev.results, newResult] };
+          localStorage.setItem("interviewAceSession", JSON.stringify(updatedSession));
+          return updatedSession;
+        });
 
         moveToNextQuestion();
 
@@ -228,13 +248,12 @@ export default function InterviewPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="shadow-lg">
             <CardContent className="p-4">
-              <div className="aspect-video w-full bg-black rounded-lg overflow-hidden">
-                {!isCameraReady ? (
-                  <div className="h-full w-full flex items-center justify-center text-white">
+              <div className="aspect-video w-full bg-black rounded-lg overflow-hidden flex items-center justify-center">
+                <video ref={videoRef} autoPlay muted className="h-full w-full object-cover scale-x-[-1]"></video>
+                {!isCameraReady && (
+                  <div className="absolute inset-0 flex items-center justify-center text-white bg-black bg-opacity-50">
                     <Loader2 className="h-8 w-8 animate-spin" />
                   </div>
-                ) : (
-                  <video ref={videoRef} autoPlay muted className="h-full w-full object-cover scale-x-[-1]"></video>
                 )}
               </div>
             </CardContent>
