@@ -19,7 +19,7 @@ const GeneratePerformanceReportInputSchema = z.object({
     .array(
       z.object({
         question: z.string().describe('The interview question.'),
-        userAnswer: z.string().describe('The user\'s answer to the question.'),
+        userAnswer: z.string().describe("The user's answer to the question."),
         relevanceScore: z.number().describe('The relevance score for the answer.'),
         fluencyScore: z.number().describe('The fluency score for the answer.'),
         confidenceScore: z.number().describe('The confidence score for the answer.'),
@@ -31,11 +31,14 @@ const GeneratePerformanceReportInputSchema = z.object({
 });
 export type GeneratePerformanceReportInput = z.infer<typeof GeneratePerformanceReportInputSchema>;
 
-const GeneratePerformanceReportOutputSchema = z.string().describe('A plain text report summarizing the interview performance.');
+const GeneratePerformanceReportOutputSchema = z.object({
+  report: z.string().describe('A plain text report summarizing the interview performance.'),
+});
 export type GeneratePerformanceReportOutput = z.infer<typeof GeneratePerformanceReportOutputSchema>;
 
-export async function generatePerformanceReport(input: GeneratePerformanceReportInput): Promise<GeneratePerformanceReportOutput> {
-  return generatePerformanceReportFlow(input);
+export async function generatePerformanceReport(input: GeneratePerformanceReportInput): Promise<string> {
+  const result = await generatePerformanceReportFlow(input);
+  return result.report;
 }
 
 const prompt = ai.definePrompt({
@@ -59,28 +62,17 @@ Interview Summary:
   Feedback: {{{feedback}}}
 {{/each}}
 
-Return a plain text report including:
+Return a JSON object containing a 'report' field with a plain text report including:
 - Summary of performance
 - Average score
 - Personalized feedback
 - Tips for improvement
 
 Example output:
-"""
-Mock Interview Report for Raj
-Job Role: Data Analyst | Experience: 1-3 years
-
-Summary:
-Raj demonstrated strong communication and relevant technical knowledge. He was confident in explaining projects and answered most questions fluently.
-
-Average Score: 8.1 / 10
-
-Recommendations:
-- Include more real-world examples in answers
-- Slow down slightly to improve fluency
-- Practice STAR format for HR questions
-
-Keep practicing!
+"""json
+{
+  "report": "Mock Interview Report for Raj\\nJob Role: Data Analyst | Experience: 1-3 years\\n\\nSummary:\\nRaj demonstrated strong communication and relevant technical knowledge. He was confident in explaining projects and answered most questions fluently.\\n\\nAverage Score: 8.1 / 10\\n\\nRecommendations:\\n- Include more real-world examples in answers\\n- Slow down slightly to improve fluency\\n- Practice STAR format for HR questions\\n\\nKeep practicing!"
+}
 """
 `,
 });
@@ -93,6 +85,10 @@ const generatePerformanceReportFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    // Handle the case where the model might return a nullish value.
+    if (!output) {
+      return { report: "We were unable to generate a report for this session. Please try again." };
+    }
+    return output;
   }
 );

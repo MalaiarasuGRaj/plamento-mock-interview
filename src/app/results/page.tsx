@@ -30,6 +30,11 @@ export default function ResultsPage() {
     setSession(parsedSession);
 
     const generateReport = async () => {
+      if (!parsedSession.results || parsedSession.results.length === 0) {
+        setReport("No interview data found to generate a report.");
+        setIsLoading(false);
+        return;
+      }
       try {
         const reportData = await generatePerformanceReport({
           userName: parsedSession.userDetails.name,
@@ -53,6 +58,7 @@ export default function ResultsPage() {
           title: "Report Error",
           description: "Could not generate the final report.",
         });
+        setReport("Failed to generate report.");
       } finally {
         setIsLoading(false);
       }
@@ -93,7 +99,9 @@ export default function ResultsPage() {
     );
   }
 
-  const averageScore = session.results.reduce((acc, r) => acc + r.evaluation.total_score, 0) / session.results.length;
+  const averageScore = session.results.length > 0 
+    ? session.results.reduce((acc, r) => acc + r.evaluation.total_score, 0) / session.results.length
+    : 0;
 
   return (
     <main className="min-h-screen bg-secondary/30 p-4 sm:p-8">
