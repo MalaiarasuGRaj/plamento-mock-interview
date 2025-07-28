@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Mic, MicOff, Bot, Loader2, Info, LogOut } from "lucide-react";
+import { Mic, MicOff, Bot, Loader2, Info, LogOut, Timer } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +24,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
+const QUESTION_TIMER_SECONDS = 30;
+
 export default function InterviewPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -34,11 +36,13 @@ export default function InterviewPage() {
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isAvatarLoaded, setIsAvatarLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState(QUESTION_TIMER_SECONDS);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const storedSession = localStorage.getItem("interviewAceSession");
@@ -67,6 +71,7 @@ export default function InterviewPage() {
     getMediaPermissions();
 
     return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
         mediaRecorderRef.current.stop();
       }
@@ -76,32 +81,7 @@ export default function InterviewPage() {
     };
   }, [router]);
 
-  const startListening = () => {
-    if (mediaStreamRef.current && status === 'idle' && isCameraReady) {
-      setTranscript("");
-      audioChunksRef.current = [];
-      try {
-        mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current);
-        mediaRecorderRef.current.ondataavailable = (event) => {
-          audioChunksRef.current.push(event.data);
-        };
-        mediaRecorderRef.current.onstop = stopListeningAndEvaluate;
-        mediaRecorderRef.current.start();
-        setStatus('listening');
-      } catch (err) {
-        console.error("MediaRecorder error:", err);
-        setError("Could not start recording. Please check your browser compatibility.");
-      }
-    }
-  };
-  
-  const finishRecording = () => {
-    if (mediaRecorderRef.current && status === 'listening') {
-       mediaRecorderRef.current.stop();
-    }
-  };
-
-  const stopListeningAndEvaluate = async () => {
+  const stopListeningAndEvaluate = useCallback(async () => {
       setStatus('evaluating');
       if (audioChunksRef.current.length === 0) {
         toast({
@@ -117,13 +97,11 @@ export default function InterviewPage() {
       audioChunksRef.current = [];
 
       try {
-        // Convert blob to base64 data URI
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = async () => {
             const base64Audio = reader.result as string;
             
-            // 1. Speech to Text
             const sttResult = await speechToText(base64Audio);
             if (sttResult.error || !sttResult.transcript) {
               throw new Error(sttResult.error || "Speech-to-text failed. The model returned an empty transcript.");
@@ -131,7 +109,6 @@ export default function InterviewPage() {
             const answerToEvaluate = sttResult.transcript;
             setTranscript(answerToEvaluate);
 
-            // 2. Evaluate Answer
             const currentQuestion = session!.questions[currentQuestionIndex];
             const evaluation = await evaluateUserAnswer({
               question: currentQuestion.question,
@@ -172,14 +149,63 @@ export default function InterviewPage() {
         toast({ variant: "destructive", title: "Evaluation Error", description: errorMessage });
         setStatus('idle');
       }
+  }, [session, currentQuestionIndex, toast, router]);
+
+  useEffect(() => {
+    if (status === 'listening') {
+      timerIntervalRef.current = setInterval(() => {
+        setTimeLeft(prevTime => {
+          if (prevTime <= 1) {
+            clearInterval(timerIntervalRef.current!);
+            if (mediaRecorderRef.current?.state === 'recording') {
+              mediaRecorderRef.current.stop();
+            }
+            return 0;
+          }
+          return prevTime - 1;
+        });
+      }, 1000);
+    } else {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    }
+    return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    };
+  }, [status]);
+  
+  const startListening = () => {
+    if (mediaStreamRef.current && status === 'idle' && isCameraReady) {
+      setTranscript("");
+      setTimeLeft(QUESTION_TIMER_SECONDS);
+      audioChunksRef.current = [];
+      try {
+        mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current);
+        mediaRecorderRef.current.ondataavailable = (event) => {
+          audioChunksRef.current.push(event.data);
+        };
+        mediaRecorderRef.current.onstop = stopListeningAndEvaluate;
+        mediaRecorderRef.current.start();
+        setStatus('listening');
+      } catch (err) {
+        console.error("MediaRecorder error:", err);
+        setError("Could not start recording. Please check your browser compatibility.");
+      }
+    }
+  };
+  
+  const finishRecording = () => {
+    if (mediaRecorderRef.current && status === 'listening') {
+       mediaRecorderRef.current.stop();
+    }
   };
 
   const moveToNextQuestion = () => {
     setStatus('next_question');
     setTimeout(() => {
-      if (currentQuestionIndex < session!.questions.length - 1) {
+      if (session && currentQuestionIndex < session.questions.length - 1) {
         setCurrentQuestionIndex(prev => prev + 1);
         setTranscript("");
+        setTimeLeft(QUESTION_TIMER_SECONDS);
         setStatus('idle');
       } else {
         router.push("/results");
@@ -222,7 +248,6 @@ export default function InterviewPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 bg-secondary/50">
       <div className="w-full max-w-6xl mx-auto space-y-4">
-        {/* This entire block will only render after the camera and avatar are ready */}
         {isCameraReady && isAvatarLoaded && (
           <>
             <div className="flex justify-between items-center">
@@ -264,7 +289,6 @@ export default function InterviewPage() {
         )}
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* User Camera View */}
           <Card className="shadow-lg">
             <CardContent className="p-4">
               <div className="aspect-video w-full bg-black rounded-lg overflow-hidden flex items-center justify-center relative">
@@ -279,7 +303,6 @@ export default function InterviewPage() {
             </CardContent>
           </Card>
 
-          {/* Interviewer View - only shows when camera is ready */}
           {isCameraReady && (
             <Card className="shadow-lg flex flex-col items-center justify-center">
               <CardContent className="p-4 flex flex-col items-center justify-center text-center flex-grow">
@@ -305,24 +328,32 @@ export default function InterviewPage() {
                   <p className="font-semibold text-sm mb-1">Question {currentQuestionIndex + 1}:</p>
                   <p className="text-lg">{currentQuestion.question}</p>
                 </div>
-                <div className="flex-shrink-0">
-                    {status === 'listening' ? (
-                        <Button onClick={finishRecording} size="icon" className="rounded-full w-16 h-16 bg-accent hover:bg-accent/90">
-                            <MicOff className="h-8 w-8" />
-                            <span className="sr-only">I'm Done</span>
-                        </Button>
-                    ) : (
-                        <Button onClick={startListening} size="icon" className="rounded-full w-16 h-16" disabled={status !== 'idle'}>
-                            {status === 'idle' && <Mic className="h-8 w-8" />}
-                            {status === 'evaluating' && <Loader2 className="h-8 w-8 animate-spin" />}
-                            {status === 'next_question' && <Bot className="h-8 w-8" />}
-                            <span className="sr-only">
-                               {status === 'idle' && 'Answer Now'}
-                               {status === 'evaluating' && 'Evaluating...'}
-                               {status === 'next_question' && 'Next Question...'}
-                            </span>
-                        </Button>
-                    )}
+                 <div className="flex items-center gap-4">
+                  {status === 'listening' && (
+                    <div className="flex items-center gap-2 text-lg font-semibold text-destructive">
+                      <Timer className="h-6 w-6" />
+                      <span>{timeLeft}s</span>
+                    </div>
+                  )}
+                  <div className="flex-shrink-0">
+                      {status === 'listening' ? (
+                          <Button onClick={finishRecording} size="icon" className="rounded-full w-16 h-16 bg-accent hover:bg-accent/90">
+                              <MicOff className="h-8 w-8" />
+                              <span className="sr-only">I'm Done</span>
+                          </Button>
+                      ) : (
+                          <Button onClick={startListening} size="icon" className="rounded-full w-16 h-16" disabled={status !== 'idle'}>
+                              {status === 'idle' && <Mic className="h-8 w-8" />}
+                              {status === 'evaluating' && <Loader2 className="h-8 w-8 animate-spin" />}
+                              {status === 'next_question' && <Bot className="h-8 w-8" />}
+                              <span className="sr-only">
+                                {status === 'idle' && 'Answer Now'}
+                                {status === 'evaluating' && 'Evaluating...'}
+                                {status === 'next_question' && 'Next Question...'}
+                              </span>
+                          </Button>
+                      )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
