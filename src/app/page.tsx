@@ -136,7 +136,7 @@ export default function Home() {
   };
   
   const experienceLevels = useMemo(() => [
-    "0-1 years", "2-5 years", "DD 5 - 8", "8 = 10", "10 - 12", "12 -15", "15+"
+    "0-1 years", "2-5 years", "5-8 years", "8-10 years", "10-12 years", "12-15 years", "15+ years"
   ], []);
 
   const content = useMemo(() => {
